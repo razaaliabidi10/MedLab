@@ -205,11 +205,13 @@
 {% endif %}
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  function refreshIcons() {
     if (window.lucide) {
       lucide.createIcons();
     }
-  });
+  }
+  document.addEventListener('DOMContentLoaded', refreshIcons);
+  document.addEventListener('alpine:initialized', refreshIcons);
 </script>
 </body>
 </html>

@@ -35,7 +35,14 @@ def landing():
         WHERE lt.is_active = 1
         ORDER BY tc.category_name, lt.price ASC
     """)
-    categories = query_db("SELECT * FROM test_categories WHERE is_active = 1 ORDER BY category_name")
+    categories_raw = query_db("SELECT * FROM test_categories WHERE is_active = 1 ORDER BY category_id")
+    categories = []
+    for cat in categories_raw:
+        cat_tests = [t for t in tests if t["category_id"] == cat["category_id"]]
+        if cat_tests:
+            c = dict(cat)
+            c["tests"] = cat_tests
+            categories.append(c)
 
     # Packages query with discounts
     packages = query_db("""
