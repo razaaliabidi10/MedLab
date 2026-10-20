@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Barcode Label — {{ sample.barcode_string }}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;600&display=swap');
+    body { font-family:'Inter',sans-serif; background:#fff; display:flex; justify-content:center; padding:20px; }
+    .label {
+      width: 340px;
+      border: 1.5px solid #0F172A;
+      border-radius: 8px;
+      padding: 16px;
+      page-break-inside: avoid;
+    }
+    .lab-name { font-size: 13px; font-weight:600; color:#0F172A; border-bottom:1px solid #E2E8F0; padding-bottom:8px; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+    .barcode { font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; letter-spacing:.12em; color:#0F172A; text-align:center; background:#F8FAFC; padding:10px; border-radius:6px; border:1px dashed #CBD5E1; margin:10px 0; }
+    .row { display:flex; justify-content:space-between; margin-bottom:5px; font-size:11px; }
+    .row .label-k { color:#64748B; }
+    .row .label-v { font-weight:600; color:#0F172A; text-align:right; max-width:200px; }
+    .badge { display:inline-block; background:#DBEAFE; color:#2563EB; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:600; }
+    .print-btn { margin-top:14px; width:100%; padding:8px; background:#2563EB; color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; font-family:inherit; }
+    @media print { .print-btn { display:none; } }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="label">
+      <div class="lab-name">
+        🧪 MedLab Diagnostics — Sample Label
+      </div>
+      <div class="barcode">{{ sample.barcode_string }}</div>
+      <div class="row"><span class="label-k">Patient</span><span class="label-v">{{ sample.full_name }}</span></div>
+      <div class="row"><span class="label-k">Phone</span><span class="label-v">{{ sample.phone }}</span></div>
+      <div class="row"><span class="label-k">Test</span><span class="label-v">{{ sample.test_name }}</span></div>
+      <div class="row"><span class="label-k">Sample Type</span><span class="label-v"><span class="badge">{{ sample.sample_type }}</span></span></div>
+      <div class="row"><span class="label-k">Booking Ref</span><span class="label-v" style="font-family:'JetBrains Mono',monospace;">{{ sample.booking_ref }}</span></div>
+      <div class="row"><span class="label-k">Collected At</span><span class="label-v">{{ sample.collected_at }}</span></div>
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨️ Print Label</button>
+  </div>
+</body>
+</html>

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Lab Worklist{% endblock %}
+{% block page_title %}Pending Sample Worklist{% endblock %}
+{% block page_subtitle %}Samples collected and awaiting biomarker result entry{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Collected Samples</div>
+    <span class="badge badge-amber">{{ worklist | length }} pending</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Barcode</th>
+          <th>Patient</th>
+          <th>Gender</th>
+          <th>Booking Ref</th>
+          <th>Test</th>
+          <th>Sample Type</th>
+          <th>Collected At</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in worklist %}
+        <tr>
+          <td><span class="font-mono" style="font-size:.8125rem;color:var(--slate-900);">{{ w.barcode_string }}</span></td>
+          <td style="font-weight:500;">{{ w.patient_name }}</td>
+          <td>{{ w.patient_gender or '—' }}</td>
+          <td class="font-mono" style="font-size:.8125rem;">{{ w.booking_ref }}</td>
+          <td>{{ w.test_name }}</td>
+          <td><span class="badge badge-slate">{{ w.sample_type }}</span></td>
+          <td style="font-size:.8125rem;color:var(--slate-500);">{{ w.collected_at }}</td>
+          <td>
+            <a href="{{ url_for('technician.enter_results', item_id=w.item_id) }}"
+               class="btn btn-primary btn-sm">
+              <i data-lucide="activity" style="width:13px;height:13px;"></i> Enter Results
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">
+              <i data-lucide="check-circle-2" style="width:32px;height:32px;color:var(--emerald);"></i>
+              <p>All caught up! No pending samples in the worklist.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Booking Queue{% endblock %}
+{% block page_title %}Front-Desk Booking Queue{% endblock %}
+{% block page_subtitle %}Search, collect payment &amp; generate sample barcodes{% endblock %}
+
+{% block content %}
+{# ── Search Bar ── #}
+<form method="GET" action="{{ url_for('receptionist.dashboard') }}" class="mb-4">
+  <div class="search-bar" style="max-width:420px;">
+    <i data-lucide="search" style="width:16px;height:16px;color:var(--slate-400);"></i>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search booking ref, patient name or phone…" autocomplete="off">
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    {% if q %}<a href="{{ url_for('receptionist.dashboard') }}" class="btn btn-ghost btn-sm">Clear</a>{% endif %}
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">{{ 'Search Results for "' + q + '"' if q else 'Recent Bookings' }}</div>
+    <span class="badge badge-slate">{{ bookings | length }} shown</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Booking Ref</th>
+          <th>Patient</th>
+          <th>Phone</th>
+          <th>Date &amp; Slot</th>
+          <th>Status</th>
+          <th>Invoice</th>
+          <th>Amount</th>
+          <th>Payment</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bookings %}
+        <tr>
+          <td class="font-mono" style="font-size:.8125rem;">{{ b.booking_ref }}</td>
+          <td style="font-weight:500;">{{ b.full_name }}</td>
+          <td style="font-size:.8125rem;">{{ b.phone }}</td>
+          <td style="font-size:.8125rem;">
+            {{ b.appointment_date }}<br>
+            <span style="color:var(--slate-500);">{{ b.appointment_slot }}</span>
+          </td>
+          <td>
+            {% set sc = {'Booked':'badge-blue','Sample_Collected':'badge-amber','In_Analysis':'badge-violet','Completed':'badge-green','Cancelled':'badge-red'} %}
+            <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
+          </td>
+          <td class="font-mono" style="font-size:.8125rem;">{{ b.invoice_number or '—' }}</td>
+          <td class="font-mono">{{ "PKR {:,.0f}".format((b.total_amount or 0)|float) }}</td>
+          <td>
+            {% if b.payment_status == 'Paid' %}<span class="badge badge-green">Paid</span>
+            {% else %}<span class="badge badge-amber">Unpaid</span>{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('receptionist.booking_detail', booking_id=b.booking_id) }}"
+               class="btn btn-ghost btn-sm">
+              <i data-lucide="arrow-right" style="width:13px;height:13px;"></i> Manage
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9">
+            <div class="empty-state">
+              <i data-lucide="calendar-x" style="width:32px;height:32px;"></i>
+              <p>{{ 'No results for "' + q + '"' if q else 'No bookings yet.' }}</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

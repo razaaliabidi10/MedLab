@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Staff Management{% endblock %}
+{% block page_title %}Staff Management{% endblock %}
+{% block page_subtitle %}Onboard and manage Receptionists &amp; Lab Technicians{% endblock %}
+
+{% block topbar_actions %}
+<div x-data="{ tab: 'list' }" class="flex items-center gap-2">
+  {# Onboard buttons that open their respective modals #}
+  <button class="btn btn-primary btn-sm" @click="$dispatch('open-tech-modal')">
+    <i data-lucide="microscope" style="width:14px;height:14px;"></i> Onboard Technician
+  </button>
+  <button class="btn btn-success btn-sm" @click="$dispatch('open-recp-modal')">
+    <i data-lucide="badge" style="width:14px;height:14px;"></i> Onboard Receptionist
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ── Modal: Add Lab Technician ── #}
+<div x-data="{ open: false }" @open-tech-modal.window="open=true" x-show="open" x-cloak>
+  <div class="modal-overlay" @click.self="open=false">
+    <div class="modal-box" @click.stop>
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Onboard Lab Technician</div>
+          <div style="font-size:.75rem;color:var(--slate-500);margin-top:.125rem;">Auto-assigns TECH-XXX employee code · role_id=3</div>
+        </div>
+        <button @click="open=false" style="background:none;border:none;cursor:pointer;color:var(--slate-400);">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <form method="POST" action="{{ url_for('admin.add_technician') }}"
+            x-data="{pw:'',get hasLen(){return this.pw.length>=8},get hasUpper(){return /[A-Z]/.test(this.pw)},get hasLower(){return /[a-z]/.test(this.pw)},get hasDigit(){return /\d/.test(this.pw)},get hasSpecial(){return /[@$!%*?&#^()_\-+=]/.test(this.pw)}}">
+        {{ tech_form.hidden_tag() }}
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            {{ tech_form.full_name(class="form-control", placeholder="Technician's full name") }}
+            {% if tech_form.full_name.errors %}<div class="form-error">{{ tech_form.full_name.errors[0] }}</div>{% endif %}
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              {{ tech_form.email(class="form-control", placeholder="tech@lab.com") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              {{ tech_form.phone(class="form-control", placeholder="+923XX") }}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" name="tech-password" id="tech-password" class="form-control"
+                   x-model="pw" placeholder="Strong password" autocomplete="new-password">
+            <ul class="pw-check-list mt-1">
+              <li :class="hasLen?'pass':''"><div class="dot"></div>8+ characters</li>
+              <li :class="hasUpper?'pass':''"><div class="dot"></div>Uppercase</li>
+              <li :class="hasLower?'pass':''"><div class="dot"></div>Lowercase</li>
+              <li :class="hasDigit?'pass':''"><div class="dot"></div>Number</li>
+              <li :class="hasSpecial?'pass':''"><div class="dot"></div>Special char</li>
+            </ul>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Qualification</label>
+            {{ tech_form.qualification(class="form-control", placeholder="e.g. B.Sc. Medical Lab Technology") }}
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Shift</label>
+              {{ tech_form.shift_timing(class="form-control") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Joining Date</label>
+              {{ tech_form.joining_date(class="form-control", type="date") }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" @click="open=false">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="user-plus" style="width:14px;height:14px;"></i> Onboard Technician
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Add Receptionist ── #}
+<div x-data="{ open: false }" @open-recp-modal.window="open=true" x-show="open" x-cloak>
+  <div class="modal-overlay" @click.self="open=false">
+    <div class="modal-box" @click.stop>
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Onboard Receptionist</div>
+          <div style="font-size:.75rem;color:var(--slate-500);margin-top:.125rem;">Auto-assigns RECP-XXX employee code · role_id=2</div>
+        </div>
+        <button @click="open=false" style="background:none;border:none;cursor:pointer;color:var(--slate-400);">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <form method="POST" action="{{ url_for('admin.add_receptionist') }}"
+            x-data="{pw:'',get hasLen(){return this.pw.length>=8},get hasUpper(){return /[A-Z]/.test(this.pw)},get hasLower(){return /[a-z]/.test(this.pw)},get hasDigit(){return /\d/.test(this.pw)},get hasSpecial(){return /[@$!%*?&#^()_\-+=]/.test(this.pw)}}">
+        {{ recp_form.hidden_tag() }}
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            {{ recp_form.full_name(class="form-control", placeholder="Receptionist's full name") }}
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              {{ recp_form.email(class="form-control", placeholder="recp@lab.com") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone</label>
+              {{ recp_form.phone(class="form-control", placeholder="+923XX") }}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" name="recp-password" id="recp-password" class="form-control"
+                   x-model="pw" placeholder="Strong password" autocomplete="new-password">
+            <ul class="pw-check-list mt-1">
+              <li :class="hasLen?'pass':''"><div class="dot"></div>8+ characters</li>
+              <li :class="hasUpper?'pass':''"><div class="dot"></div>Uppercase</li>
+              <li :class="hasLower?'pass':''"><div class="dot"></div>Lowercase</li>
+              <li :class="hasDigit?'pass':''"><div class="dot"></div>Number</li>
+              <li :class="hasSpecial?'pass':''"><div class="dot"></div>Special char</li>
+            </ul>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Qualification</label>
+            {{ recp_form.qualification(class="form-control", placeholder="e.g. BBA, Front-Desk Diploma") }}
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Shift</label>
+              {{ recp_form.shift_timing(class="form-control") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Joining Date</label>
+              {{ recp_form.joining_date(class="form-control", type="date") }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" @click="open=false">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i data-lucide="user-check" style="width:14px;height:14px;"></i> Onboard Receptionist
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Staff Directory Table ── #}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Staff Directory</div>
+    <span class="badge badge-slate">{{ staff_list | length }} records</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Role</th>
+          <th>Employee Code</th>
+          <th>Email</th>
+          <th>Shift</th>
+          <th>Qualification</th>
+          <th>Joined</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in staff_list %}
+        <tr>
+          <td>
+            <div class="flex items-center gap-2">
+              <div class="avatar" style="width:32px;height:32px;background:var(--cobalt-light);">
+                {% if s.avatar_url and s.avatar_url != 'default_avatar.png' %}
+                  <img src="{{ url_for('static', filename='uploads/avatars/' + s.avatar_url) }}" alt="">
+                {% else %}
+                  <i data-lucide="user" style="color:var(--cobalt);width:14px;height:14px;"></i>
+                {% endif %}
+              </div>
+              <div>
+                <div style="font-weight:500;font-size:.875rem;">{{ s.full_name }}</div>
+                <div style="font-size:.75rem;color:var(--slate-400);">{{ s.phone }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if s.role_id == 3 %}<span class="badge badge-violet">Lab Technician</span>
+            {% else %}<span class="badge badge-blue">Receptionist</span>{% endif %}
+          </td>
+          <td class="font-mono" style="font-size:.8125rem;">{{ s.employee_code or '—' }}</td>
+          <td style="font-size:.8125rem;">{{ s.email }}</td>
+          <td><span class="badge badge-slate">{{ s.shift_timing or '—' }}</span></td>
+          <td style="font-size:.8125rem;">{{ s.qualification or '—' }}</td>
+          <td style="font-size:.8125rem;">{{ s.joining_date or '—' }}</td>
+          <td>
+            {% if s.is_active %}<span class="badge badge-green">Active</span>
+            {% else %}<span class="badge badge-red">Suspended</span>{% endif %}
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.toggle_active') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="user_id" value="{{ s.user_id }}">
+              <button type="submit" class="btn btn-sm {% if s.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                {% if s.is_active %}Suspend{% else %}Activate{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9">
+            <div class="empty-state">
+              <i data-lucide="users" style="width:32px;height:32px;"></i>
+              <p>No staff onboarded yet. Use the buttons above to add staff.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>[x-cloak]{display:none!important;}</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Re-render Lucide icons after Alpine.js mounts modals
+  document.addEventListener('alpine:initialized', () => { lucide.createIcons(); });
+</script>
+{% endblock %}

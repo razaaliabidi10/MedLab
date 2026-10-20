@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block page_title %}Profile Settings{% endblock %}
+{% block page_subtitle %}Manage your account information{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="flex items-center gap-3">
+        <div class="avatar avatar-lg" style="background:var(--cobalt-light);">
+          {% if current_user.avatar_url and current_user.avatar_url != 'default_avatar.png' %}
+            <img src="{{ url_for('static', filename='uploads/avatars/' + current_user.avatar_url) }}" alt="Avatar">
+          {% else %}
+            <i data-lucide="user" style="color:var(--cobalt);width:24px;height:24px;"></i>
+          {% endif %}
+        </div>
+        <div>
+          <div class="card-title">{{ current_user.full_name }}</div>
+          <span class="badge badge-blue" style="margin-top:.25rem;">{{ current_user.role_name | title }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('auth.profile') }}" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+
+        {# Avatar Upload #}
+        <div class="form-group">
+          <label class="form-label">Profile Picture</label>
+          <input type="file" name="avatar" id="avatar" class="form-control"
+                 accept=".png,.jpg,.jpeg,.webp" style="padding:.375rem .75rem;">
+          <div style="font-size:.75rem;color:var(--slate-500);margin-top:.25rem;">Max 2 MB · PNG, JPG, WEBP</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          {{ form.full_name(class="form-control") }}
+          {% if form.full_name.errors %}<div class="form-error">{{ form.full_name.errors[0] }}</div>{% endif %}
+        </div>
+
+        {# Locked Fields #}
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="input-group field-locked">
+            <input type="email" class="form-control" value="{{ current_user.email }}" readonly
+                   style="padding-right:9rem;">
+            <span class="lock-badge">
+              <i data-lucide="lock" style="width:10px;height:10px;"></i>
+              Immutable
+            </span>
+          </div>
+          <div style="font-size:.75rem;color:var(--slate-400);margin-top:.25rem;">Email is a permanent security identifier and cannot be changed.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <div class="input-group field-locked">
+            <input type="text" class="form-control" value="{{ current_user.phone }}" readonly
+                   style="padding-right:9rem;">
+            <span class="lock-badge">
+              <i data-lucide="lock" style="width:10px;height:10px;"></i>
+              Immutable
+            </span>
+          </div>
+        </div>
+
+        {% if current_user.role_id == 4 and form.date_of_birth is defined %}
+        <hr class="divider">
+        <div style="font-size:.8125rem;font-weight:600;color:var(--slate-600);text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem;">Clinical Profile</div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            {{ form.date_of_birth(class="form-control") }}
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            {{ form.gender(class="form-control") }}
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Blood Group</label>
+            {{ form.blood_group(class="form-control") }}
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Address</label>
+          {{ form.address(class="form-control", rows=2) }}
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="save" style="width:15px;height:15px;"></i> Save Changes
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

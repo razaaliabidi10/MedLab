@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Booking {{ booking.booking_ref }}{% endblock %}
+{% block page_title %}Booking Details{% endblock %}
+{% block page_subtitle %}{{ booking.booking_ref }} · {{ booking.appointment_date }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('patient.dashboard') }}" class="btn btn-ghost btn-sm">
+  <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> My Bookings
+</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;align-items:start;">
+  <div>
+    {# Status Progress #}
+    {% set statuses = ['Booked','Sample_Collected','In_Analysis','Completed'] %}
+    {% set cur_idx = statuses.index(booking.booking_status) if booking.booking_status in statuses else 0 %}
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="status-steps">
+          {% for i in range(statuses|length) %}
+            <div class="step-node">
+              <div class="step-dot {{ 'done' if i < cur_idx else ('active' if i == cur_idx else '') }}">
+                {% if i < cur_idx %}<i data-lucide="check" style="width:10px;height:10px;"></i>
+                {% else %}{{ i+1 }}{% endif %}
+              </div>
+              <div class="step-label">{{ statuses[i] | replace('_',' ') }}</div>
+            </div>
+            {% if i < statuses|length - 1 %}<div class="step-line {{ 'done' if i < cur_idx else '' }}"></div>{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {# Items Table #}
+    <div class="card">
+      <div class="card-header"><div class="card-title">Tests Booked</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Test</th><th>Sample Type</th><th>Price</th><th>Status</th><th>Report</th></tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td style="font-weight:500;">{{ item.test_name }}</td>
+              <td style="font-size:.8125rem;">{{ item.sample_type }}</td>
+              <td class="font-mono">PKR {{ "{:,.0f}".format(item.price_at_booking|float) }}</td>
+              <td>
+                {% set ic = {'Pending_Sample':'badge-amber','Sample_Collected':'badge-blue','Report_Ready':'badge-green'} %}
+                <span class="badge {{ ic.get(item.item_status,'badge-slate') }}">{{ item.item_status | replace('_',' ') }}</span>
+              </td>
+              <td>
+                {% if item.item_status == 'Report_Ready' %}
+                  <a href="{{ url_for('technician.view_report', item_id=item.item_id) }}"
+                     target="_blank" class="btn btn-success btn-sm">
+                    <i data-lucide="file-text" style="width:13px;height:13px;"></i> View Report
+                  </a>
+                {% elif item.barcode_string %}
+                  <span style="font-size:.75rem;color:var(--slate-500);">In Lab · {{ item.barcode_string }}</span>
+                {% else %}
+                  <span style="font-size:.75rem;color:var(--slate-400);">Awaiting sample</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Invoice Card #}
+  <div class="card">
+    <div class="card-header"><div class="card-title">Invoice</div></div>
+    <div class="card-body">
+      <div class="flex justify-between mb-2" style="font-size:.8125rem;">
+        <span style="color:var(--slate-500);">Invoice #</span>
+        <span class="font-mono font-semibold">{{ booking.invoice_number or '—' }}</span>
+      </div>
+      <div class="flex justify-between mb-3" style="font-size:.8125rem;">
+        <span style="color:var(--slate-500);">Total</span>
+        <span class="font-mono font-bold" style="font-size:1rem;">PKR {{ "{:,.0f}".format((booking.total_amount or 0)|float) }}</span>
+      </div>
+      {% if booking.payment_status == 'Paid' %}
+        <span class="badge badge-green w-full" style="justify-content:center;padding:.5rem;">
+          <i data-lucide="check-circle-2" style="width:13px;height:13px;"></i> Paid
+          {% if booking.payment_method %} via {{ booking.payment_method | replace('_',' ') }}{% endif %}
+        </span>
+      {% else %}
+        <div style="background:var(--amber-light);border-radius:6px;padding:.625rem;font-size:.75rem;color:var(--amber);">
+          ⚠️ Payment pending. Please visit the reception counter to pay and initiate sample collection.
+        </div>
+      {% endif %}
+      <hr class="divider">
+      <div style="font-size:.8125rem;color:var(--slate-600);">
+        <div class="mb-2"><strong>Date:</strong> {{ booking.appointment_date }}</div>
+        <div><strong>Slot:</strong> {{ booking.appointment_slot }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

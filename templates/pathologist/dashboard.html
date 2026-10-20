@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Pathologist Verification Queue{% endblock %}
+{% block page_title %}Verification Queue{% endblock %}
+{% block page_subtitle %}Review analyzed diagnostic results and approve patient reports{% endblock %}
+
+{% block content %}
+<div class="stats-grid mb-6" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;margin-bottom:1.5rem;">
+  <div class="card" style="padding:1.25rem;">
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-bottom:.25rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Awaiting Sign-off</div>
+    <div style="font-size:2rem;font-weight:700;color:var(--amber);">{{ stats.pending_count }}</div>
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-top:.25rem;">Diagnostic sets pending</div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;">
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-bottom:.25rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Verified Today</div>
+    <div style="font-size:2rem;font-weight:700;color:var(--emerald);">{{ stats.verified_today }}</div>
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-top:.25rem;">Reports signed & unlocked</div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;">
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-bottom:.25rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Recent Sign-offs</div>
+    <div style="font-size:2rem;font-weight:700;color:var(--primary);">{{ stats.total_completed }}</div>
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-top:.25rem;">Last 10 approvals</div>
+  </div>
+</div>
+
+<div class="card mb-6">
+  <div class="card-header">
+    <div class="card-title">Pending Verification Queue</div>
+    <span class="badge badge-amber">{{ pending_queue | length }} awaiting review</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Booking Ref</th>
+          <th>Patient Name</th>
+          <th>Contact</th>
+          <th>Appointment</th>
+          <th>Collection Type</th>
+          <th>Tests</th>
+          <th>Flag Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in pending_queue %}
+        <tr>
+          <td><span class="font-mono font-bold" style="font-size:.8125rem;color:var(--slate-900);">{{ b.booking_ref }}</span></td>
+          <td style="font-weight:600;">{{ b.patient_name }}</td>
+          <td style="font-size:.8125rem;color:var(--slate-500);">{{ b.patient_phone }}</td>
+          <td style="font-size:.8125rem;">{{ b.appointment_date }} <span style="color:var(--slate-400);">({{ b.appointment_slot }})</span></td>
+          <td>
+            {% if b.collection_type == 'Home' %}
+              <span class="badge badge-indigo">Home Visit</span>
+            {% else %}
+              <span class="badge badge-slate">Lab Visit</span>
+            {% endif %}
+          </td>
+          <td><span class="badge badge-slate">{{ b.total_tests }} test(s)</span></td>
+          <td>
+            {% if b.abnormal_count and b.abnormal_count > 0 %}
+              <span class="badge badge-red" style="font-weight:600;">
+                <i data-lucide="alert-triangle" style="width:12px;height:12px;display:inline;vertical-align:-1px;"></i>
+                {{ b.abnormal_count }} Abnormal Flag(s)
+              </span>
+            {% else %}
+              <span class="badge badge-emerald">Within Normal Limits</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('pathologist.review', booking_id=b.booking_id) }}" class="btn btn-primary btn-sm">
+              <i data-lucide="eye" style="width:13px;height:13px;"></i> Review & Sign Off
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8">
+            <div class="empty-state" style="padding:2.5rem;text-align:center;">
+              <i data-lucide="check-circle" style="width:36px;height:36px;color:var(--emerald);margin:0 auto 0.75rem auto;display:block;"></i>
+              <p style="font-weight:600;color:var(--slate-700);">No results awaiting verification!</p>
+              <p style="font-size:.8125rem;color:var(--slate-400);">All completed technician entries have been processed.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if recent_verified %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Recently Verified Reports</div>
+    <span class="badge badge-emerald">Completed</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Booking Ref</th>
+          <th>Patient Name</th>
+          <th>Appointment Date</th>
+          <th>Tests Verified</th>
+          <th>Verification Timestamp</th>
+          <th>Status</th>
+          <th>Report</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent_verified %}
+        <tr>
+          <td class="font-mono" style="font-size:.8125rem;">{{ r.booking_ref }}</td>
+          <td style="font-weight:500;">{{ r.patient_name }}</td>
+          <td>{{ r.appointment_date }}</td>
+          <td>{{ r.total_tests }} test(s)</td>
+          <td style="font-size:.8125rem;color:var(--slate-500);">{{ r.verified_at }}</td>
+          <td><span class="badge badge-emerald">Approved</span></td>
+          <td>
+            <a href="{{ url_for('pathologist.review', booking_id=r.booking_id) }}" class="btn btn-outline btn-sm">
+              <i data-lucide="file-text" style="width:13px;height:13px;"></i> View Details
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diagnostic Report — {{ item.booking_ref }} / {{ item.test_code }}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family:'Inter',sans-serif; background:#F8FAFC; color:#0F172A; }
+    .wrapper { max-width:860px; margin:2rem auto; background:#fff; border:1px solid #E2E8F0; border-radius:10px; overflow:hidden; }
+
+    /* Header */
+    .report-header { background:#0F172A; color:#fff; padding:1.5rem 2rem; display:flex; justify-content:space-between; align-items:flex-start; }
+    .lab-name { font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
+    .lab-sub  { font-size:.75rem; color:#94A3B8; margin-top:.125rem; }
+    .report-label { font-family:'JetBrains Mono',monospace; font-size:.6875rem; background:rgba(37,99,235,.25); border:1px solid rgba(37,99,235,.4); color:#93C5FD; padding:.25rem .75rem; border-radius:999px; }
+
+    /* Meta Band */
+    .meta-band { background:#F1F5F9; border-bottom:1px solid #E2E8F0; padding:1rem 2rem; display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+    .meta-item .mk { font-size:.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:#64748B; }
+    .meta-item .mv { font-size:.875rem; font-weight:600; color:#0F172A; margin-top:.125rem; }
+
+    /* Patient Section */
+    .patient-section { padding:1rem 2rem; border-bottom:1px solid #E2E8F0; display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .section-hdr { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#2563EB; margin-bottom:.625rem; }
+    .info-row { display:flex; gap:.5rem; margin-bottom:.25rem; font-size:.8125rem; }
+    .info-key { color:#64748B; min-width:110px; }
+    .info-val { font-weight:500; color:#0F172A; }
+
+    /* Barcode Area */
+    .barcode-area { padding:.75rem 2rem; border-bottom:1px solid #E2E8F0; display:flex; align-items:center; gap:1rem; }
+    .barcode-text { font-family:'JetBrains Mono',monospace; font-size:1.25rem; font-weight:700; letter-spacing:.1em; color:#0F172A; }
+    .barcode-sub  { font-size:.6875rem; color:#64748B; margin-top:.25rem; }
+
+    /* Results Table */
+    .results-section { padding:1.25rem 2rem; }
+    .results-table { width:100%; border-collapse:collapse; margin-top:.75rem; }
+    .results-table th {
+      text-align:left; padding:.5rem .75rem;
+      font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+      color:#475569; background:#F8FAFC; border-bottom:2px solid #E2E8F0;
+      font-family:'JetBrains Mono',monospace;
+    }
+    .results-table td {
+      padding:.625rem .75rem;
+      font-size:.8125rem;
+      font-family:'JetBrains Mono',monospace;
+      border-bottom:1px solid #F1F5F9;
+      vertical-align:middle;
+    }
+    .results-table tr:last-child td { border-bottom:none; }
+    .results-table tr.abnormal { background:#FFF5F5; }
+
+    .flag-badge { display:inline-block; padding:.125rem .5rem; border-radius:999px; font-size:.625rem; font-weight:700; }
+    .flag-high   { background:#FEE2E2; color:#DC2626; }
+    .flag-low    { background:#DBEAFE; color:#2563EB; }
+    .flag-normal { background:#D1FAE5; color:#059669; }
+
+    /* Footer */
+    .report-footer { padding:1rem 2rem; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; }
+    .footer-note { font-size:.6875rem; color:#94A3B8; max-width:420px; }
+    .print-btn { padding:.5rem 1.25rem; background:#2563EB; color:#fff; border:none; border-radius:6px; font-size:.875rem; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:.375rem; }
+    .print-btn:hover { background:#1D4ED8; }
+
+    @media print {
+      body { background:#fff; }
+      .wrapper { margin:0; border:none; border-radius:0; box-shadow:none; }
+      .print-btn, .no-print { display:none !important; }
+      .results-table tr.abnormal { background:#FFF5F5 !important; -webkit-print-color-adjust:exact; }
+      .flag-high   { color:#DC2626 !important; }
+      .flag-low    { color:#2563EB !important; }
+      .flag-normal { color:#059669 !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  {# Header #}
+  <div class="report-header">
+    <div>
+      <div class="lab-name">🧪 MedLab Diagnostics</div>
+      <div class="lab-sub">ISO-Certified Clinical Laboratory · Karachi, Pakistan</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="report-label">DIAGNOSTIC REPORT</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:#94A3B8;margin-top:.5rem;">{{ item.booking_ref }}</div>
+    </div>
+  </div>
+
+  {# Meta Band #}
+  <div class="meta-band">
+    <div class="meta-item">
+      <div class="mk">Report Date</div>
+      <div class="mv">{{ results[0].verified_at.strftime('%d %b %Y') if results else '—' }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="mk">Appointment</div>
+      <div class="mv">{{ item.appointment_date }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="mk">Category</div>
+      <div class="mv">{{ item.category_name }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="mk">Test Code</div>
+      <div class="mv" style="font-family:'JetBrains Mono',monospace;">{{ item.test_code }}</div>
+    </div>
+  </div>
+
+  {# Patient & Sample Info #}
+  <div class="patient-section">
+    <div>
+      <div class="section-hdr">Patient Information</div>
+      <div class="info-row"><span class="info-key">Full Name</span><span class="info-val">{{ item.patient_name }}</span></div>
+      <div class="info-row"><span class="info-key">Phone</span><span class="info-val">{{ item.phone }}</span></div>
+      <div class="info-row"><span class="info-key">Email</span><span class="info-val">{{ item.email }}</span></div>
+      {% if item.date_of_birth %}<div class="info-row"><span class="info-key">Date of Birth</span><span class="info-val">{{ item.date_of_birth }}</span></div>{% endif %}
+      {% if item.gender %}<div class="info-row"><span class="info-key">Gender</span><span class="info-val">{{ item.gender }}</span></div>{% endif %}
+      {% if item.blood_group %}<div class="info-row"><span class="info-key">Blood Group</span><span class="info-val">{{ item.blood_group }}</span></div>{% endif %}
+    </div>
+    <div>
+      <div class="section-hdr">Test Information</div>
+      <div class="info-row"><span class="info-key">Test Name</span><span class="info-val">{{ item.test_name }}</span></div>
+      <div class="info-row"><span class="info-key">Sample Type</span><span class="info-val">{{ item.sample_type }}</span></div>
+      <div class="info-row"><span class="info-key">Collected At</span><span class="info-val">{{ item.collected_at }}</span></div>
+      {% if results %}<div class="info-row"><span class="info-key">Analyzed By</span><span class="info-val">{{ results[0].tech_name }}</span></div>{% endif %}
+      <div class="info-row"><span class="info-key">Slot</span><span class="info-val">{{ item.appointment_slot }}</span></div>
+    </div>
+  </div>
+
+  {# Barcode #}
+  <div class="barcode-area">
+    <div>
+      <div class="barcode-text">{{ item.barcode_string }}</div>
+      <div class="barcode-sub">Sample Barcode — Scan for chain of custody</div>
+    </div>
+    <div style="margin-left:auto;text-align:right;">
+      {% if item.sample_status == 'Analyzed' %}
+        <span style="display:inline-flex;align-items:center;gap:.25rem;background:#D1FAE5;color:#059669;padding:.25rem .75rem;border-radius:999px;font-size:.75rem;font-weight:700;">✓ Verified</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Results Table #}
+  <div class="results-section">
+    <div class="section-hdr">Measured Results</div>
+    {% if results %}
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Parameter</th>
+          <th>Measured Value</th>
+          <th>Unit</th>
+          <th>Reference Range</th>
+          <th>Flag</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr class="{{ 'abnormal' if r.is_abnormal else '' }}">
+          <td style="color:#94A3B8;">{{ loop.index }}</td>
+          <td style="font-family:'Inter',sans-serif;font-weight:{% if r.is_abnormal %}600{% else %}400{% endif %};">
+            {{ r.param_name }}
+          </td>
+          <td style="font-weight:700;{% if r.flag_status == 'HIGH' %}color:#DC2626;{% elif r.flag_status == 'LOW' %}color:#2563EB;{% else %}color:#0F172A;{% endif %}">
+            {{ r.measured_value }}
+          </td>
+          <td style="color:#64748B;">{{ r.unit }}</td>
+          <td style="color:#64748B;">{{ r.min_range }} – {{ r.max_range }}</td>
+          <td>
+            <span class="flag-badge flag-{{ r.flag_status | lower }}">{{ r.flag_status }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#94A3B8;margin-top:.75rem;">No results recorded.</p>
+    {% endif %}
+  </div>
+
+  {# Footer #}
+  <div class="report-footer">
+    <div class="footer-note">
+      ⚠️ This report is for informational purposes only. Please consult a qualified physician for medical advice based on these results.
+      MedLab Diagnostics — ISO-Certified Clinical Laboratory.
+    </div>
+    <button class="print-btn no-print" onclick="window.print()">
+      🖨️ Print Report
+    </button>
+  </div>
+</div>
+</body>
+</html>

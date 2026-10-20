@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Booking {{ booking.booking_ref }}{% endblock %}
+{% block page_title %}Booking: <span class="font-mono">{{ booking.booking_ref }}</span>{% endblock %}
+{% block page_subtitle %}Patient check-in, payment &amp; sample collection{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('receptionist.dashboard') }}" class="btn btn-ghost btn-sm">
+  <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back
+</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 320px;gap:1.25rem;align-items:start;">
+
+  {# ── Left: Items ── #}
+  <div>
+    {# Status Timeline #}
+    <div class="card mb-4">
+      <div class="card-body">
+        {% set statuses = ['Booked','Sample_Collected','In_Analysis','Completed'] %}
+        {% set ns = namespace(cur_idx=0) %}
+        {% for s in statuses %}{% if s == booking.booking_status %}{% set ns.cur_idx = loop.index0 %}{% endif %}{% endfor %}
+        <div class="status-steps">
+          {% for s in statuses %}
+            {% set i = loop.index0 %}
+            <div class="step-node">
+              <div class="step-dot {{ 'done' if i < ns.cur_idx else ('active' if i == ns.cur_idx else '') }}">
+                {% if i < ns.cur_idx %}<i data-lucide="check" style="width:11px;height:11px;"></i>
+                {% else %}{{ i+1 }}{% endif %}
+              </div>
+              <div class="step-label">{{ s | replace('_',' ') }}</div>
+            </div>
+            {% if not loop.last %}<div class="step-line {{ 'done' if i < ns.cur_idx else '' }}"></div>{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {# Tests / Items #}
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Booking Items</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Test</th><th>Sample Type</th><th>Barcode</th><th>Item Status</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td style="font-weight:500;font-size:.875rem;">{{ item.test_name }}</td>
+              <td style="font-size:.8125rem;">{{ item.sample_type }}</td>
+              <td>
+                {% if item.barcode_string %}
+                  <span class="font-mono" style="font-size:.8125rem;">{{ item.barcode_string }}</span>
+                {% else %}
+                  <span style="color:var(--slate-400);font-size:.8125rem;">Not collected</span>
+                {% endif %}
+              </td>
+              <td>
+                {% set ic = {'Pending_Sample':'badge-amber','Sample_Collected':'badge-blue','Report_Ready':'badge-green'} %}
+                <span class="badge {{ ic.get(item.item_status,'badge-slate') }}">{{ item.item_status | replace('_',' ') }}</span>
+              </td>
+              <td>
+                {% if booking.payment_status == 'Paid' and item.item_status == 'Pending_Sample' %}
+                  <form method="POST" action="{{ url_for('receptionist.collect_sample', item_id=item.item_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <i data-lucide="droplets" style="width:13px;height:13px;"></i> Collect Sample
+                    </button>
+                  </form>
+                {% elif item.barcode_string %}
+                  <a href="{{ url_for('receptionist.print_barcode', item_id=item.item_id) }}"
+                     target="_blank" class="btn btn-ghost btn-sm">
+                    <i data-lucide="printer" style="width:13px;height:13px;"></i> Print Label
+                  </a>
+                {% elif booking.payment_status != 'Paid' %}
+                  <span style="font-size:.75rem;color:var(--slate-400);">Collect payment first</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ── Right: Invoice & Patient ── #}
+  <div>
+    <div class="card mb-4">
+      <div class="card-header"><div class="card-title">Patient</div></div>
+      <div class="card-body">
+        <div style="font-weight:600;margin-bottom:.25rem;">{{ booking.full_name }}</div>
+        <div style="font-size:.8125rem;color:var(--slate-500);">{{ booking.phone }}</div>
+        <div style="font-size:.8125rem;color:var(--slate-500);">{{ booking.email }}</div>
+        <hr class="divider">
+        <div style="font-size:.8125rem;color:var(--slate-600);margin-bottom:.25rem;">
+          <strong>Appointment:</strong> {{ booking.appointment_date }}
+        </div>
+        <div style="font-size:.8125rem;color:var(--slate-600);">
+          <strong>Slot:</strong> {{ booking.appointment_slot }}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Invoice</div></div>
+      <div class="card-body">
+        <div class="flex justify-between mb-2" style="font-size:.8125rem;">
+          <span style="color:var(--slate-500);">Invoice #</span>
+          <span class="font-mono font-semibold">{{ booking.invoice_number or '—' }}</span>
+        </div>
+        <div class="flex justify-between mb-3" style="font-size:.8125rem;">
+          <span style="color:var(--slate-500);">Total Amount</span>
+          <span class="font-mono font-bold" style="font-size:1rem;">PKR {{ "{:,.0f}".format((booking.total_amount or 0)|float) }}</span>
+        </div>
+
+        {% if booking.payment_status == 'Paid' %}
+          <div class="badge badge-green w-full" style="justify-content:center;padding:.5rem;">
+            <i data-lucide="check-circle-2" style="width:13px;height:13px;"></i> Payment Received
+          </div>
+          <div style="font-size:.75rem;color:var(--slate-500);text-align:center;margin-top:.5rem;">
+            via {{ booking.payment_method | replace('_',' ') if booking.payment_method else '—' }}
+          </div>
+        {% else %}
+          <form method="POST" action="{{ url_for('receptionist.collect_payment', booking_id=booking.booking_id) }}">
+            {{ pay_form.hidden_tag() }}
+            <div class="form-group">
+              <label class="form-label">Payment Method</label>
+              {{ pay_form.payment_method(class="form-control") }}
+            </div>
+            <button type="submit" class="btn btn-success w-full" style="justify-content:center;">
+              <i data-lucide="banknote" style="width:14px;height:14px;"></i> Collect Payment
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Jinja2 doesn't have enumerate built-in, use loop.index0
+  // (Already using loop.index0 pattern via loop variable above)
+</script>
+{% endblock %}

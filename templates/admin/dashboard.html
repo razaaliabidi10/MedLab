@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+{% block page_subtitle %}System overview &amp; analytics{% endblock %}
+
+{% block content %}
+{# ── KPI Cards ── #}
+<div class="kpi-grid mb-6">
+  <div class="kpi-card blue" style="animation-delay:.05s">
+    <div class="kpi-label">Total Revenue</div>
+    <div class="kpi-value font-mono">PKR {{ "{:,.0f}".format(kpis.total_revenue|float) }}</div>
+    <div class="kpi-icon"><i data-lucide="trending-up" style="width:48px;height:48px;"></i></div>
+  </div>
+  <div class="kpi-card green" style="animation-delay:.10s">
+    <div class="kpi-label">Total Bookings</div>
+    <div class="kpi-value">{{ kpis.total_bookings }}</div>
+    <div class="kpi-icon"><i data-lucide="calendar" style="width:48px;height:48px;"></i></div>
+  </div>
+  <div class="kpi-card amber" style="animation-delay:.15s">
+    <div class="kpi-label">Pending (Booked)</div>
+    <div class="kpi-value">{{ kpis.pending_samples }}</div>
+    <div class="kpi-icon"><i data-lucide="hourglass" style="width:48px;height:48px;"></i></div>
+  </div>
+  <div class="kpi-card violet" style="animation-delay:.20s">
+    <div class="kpi-label">Active Staff</div>
+    <div class="kpi-value">{{ kpis.active_staff }}</div>
+    <div class="kpi-icon"><i data-lucide="users" style="width:48px;height:48px;"></i></div>
+  </div>
+</div>
+
+{# ── Recent Bookings ── #}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Recent Bookings</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Booking Ref</th>
+          <th>Patient</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Amount (PKR)</th>
+          <th>Payment</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in recent %}
+        <tr>
+          <td class="font-mono" style="font-size:.8125rem;">{{ b.booking_ref }}</td>
+          <td>{{ b.full_name }}</td>
+          <td>{{ b.appointment_date }}</td>
+          <td>
+            {% set sc = {'Booked':'badge-blue','Sample_Collected':'badge-amber','In_Analysis':'badge-violet','Completed':'badge-green','Cancelled':'badge-red'} %}
+            <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
+          </td>
+          <td class="font-mono">{{ "{:,.0f}".format((b.total_amount or 0)|float) }}</td>
+          <td>
+            {% if b.payment_status == 'Paid' %}<span class="badge badge-green">Paid</span>
+            {% elif b.payment_status == 'Refunded' %}<span class="badge badge-red">Refunded</span>
+            {% else %}<span class="badge badge-amber">Unpaid</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="empty-state">No bookings yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

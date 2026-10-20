@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}404 Not Found — VeraLab Diagnostics{% endblock %}
+
+{% block public_content %}
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg-page);padding:2rem 1rem;">
+  <div style="width:100%;max-width:480px;text-align:center;">
+    
+    <div class="card" style="padding:2.5rem 2rem;background:#FFFFFF;border:1px solid var(--card-border);box-shadow:var(--shadow-card);">
+      
+      {# Icon Badge #}
+      <div style="width:64px;height:64px;border-radius:16px;background:#EFF6FF;border:1px solid #DBEAFE;display:grid;place-items:center;margin:0 auto 1.5rem;">
+        <i data-lucide="file-question" style="width:32px;height:32px;color:var(--blue-primary);"></i>
+      </div>
+
+      {# Code & Status #}
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.25rem 0.75rem;border-radius:9999px;background:#EFF6FF;color:var(--blue-primary);font-size:0.75rem;font-weight:700;letter-spacing:0.05em;margin-bottom:1rem;border:1px solid #DBEAFE;">
+        HTTP 404 — NOT FOUND
+      </div>
+
+      <div style="font-family:var(--font-mono);font-size:3rem;font-weight:800;color:var(--navy-ink);line-height:1;letter-spacing:-0.04em;margin-bottom:0.75rem;">
+        404
+      </div>
+
+      <h1 style="font-size:1.25rem;font-weight:800;color:var(--navy-ink);margin-bottom:0.5rem;">
+        Diagnostic Record Not Found
+      </h1>
+      
+      <p style="font-size:0.875rem;color:var(--navy-muted);line-height:1.6;margin-bottom:2rem;">
+        The requested URL, test requisition, or patient record does not exist or may have been relocated.
+      </p>
+
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <a href="/" class="btn btn-primary" style="justify-content:center;padding:0.75rem;">
+          <i data-lucide="home" style="width:16px;height:16px;"></i> Return to Homepage
+        </a>
+        <a href="/#tests" class="btn btn-ghost" style="justify-content:center;padding:0.75rem;">
+          <i data-lucide="flask-conical" style="width:16px;height:16px;"></i> Browse Test Directory
+        </a>
+      </div>
+
+    </div>
+
+    <div style="margin-top:1.5rem;font-size:0.75rem;color:var(--navy-subtle);">
+      VeraLab Diagnostics &bull; Accurate &bull; ISO 15189 Certified
+    </div>
+  </div>
+</div>
+{% endblock %}

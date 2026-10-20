@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Book a Test{% endblock %}
+{% block page_title %}Book Diagnostic Tests{% endblock %}
+{% block page_subtitle %}Select tests, choose your appointment slot{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('patient.book_test') }}"
+      x-data="{ selected: [], total: 0 }">
+  {{ form.hidden_tag() }}
+
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:1.25rem;align-items:start;">
+
+    {# ── Test Selection ── #}
+    <div>
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="card-title">Select Tests</div>
+          <span class="badge badge-blue" x-text="selected.length + ' selected'">0 selected</span>
+        </div>
+        <div class="card-body">
+          {% set current_cat = namespace(name='') %}
+          {% for test in tests %}
+            {% if test.category_name != current_cat.name %}
+              {% set current_cat.name = test.category_name %}
+              <div style="font-size:.6875rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.08em;margin:{% if loop.index > 1 %}1.25rem{% else %}0{% endif %} 0 .625rem;">
+                {{ test.category_name }}
+              </div>
+            {% endif %}
+            <label style="display:flex;align-items:center;gap:.75rem;padding:.75rem;border:1px solid var(--slate-200);border-radius:8px;cursor:pointer;margin-bottom:.5rem;transition:border-color .15s,background .15s;"
+                   :class="selected.includes({{ test.test_id }}) ? 'border-cobalt' : ''"
+                   :style="selected.includes({{ test.test_id }}) ? 'border-color:var(--cobalt);background:var(--cobalt-50);' : ''">
+              <input type="checkbox" name="test_ids" value="{{ test.test_id }}"
+                     style="width:16px;height:16px;accent-color:var(--cobalt);"
+                     @change="
+                       if($event.target.checked) {
+                         selected.push({{ test.test_id }});
+                         total += {{ test.price }};
+                       } else {
+                         selected = selected.filter(id => id !== {{ test.test_id }});
+                         total -= {{ test.price }};
+                       }
+                     ">
+              <div style="flex:1;">
+                <div style="font-weight:500;font-size:.875rem;color:var(--slate-900);">{{ test.test_name }}</div>
+                <div style="font-size:.75rem;color:var(--slate-500);">
+                  {{ test.sample_type }} · {{ test.turnaround_hours }}h TAT
+                </div>
+                {% if test.pre_test_instructions and test.pre_test_instructions != 'No special preparation required.' %}
+                <div style="font-size:.6875rem;color:var(--amber);margin-top:.25rem;">⚠️ {{ test.pre_test_instructions }}</div>
+                {% endif %}
+              </div>
+              <div class="font-mono" style="font-size:.9375rem;font-weight:700;color:var(--cobalt);">
+                PKR {{ "%.0f"|format(test.price) }}
+              </div>
+            </label>
+          {% else %}
+            <p style="color:var(--slate-500);">No active tests available.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Appointment & Summary ── #}
+    <div>
+      <div class="card mb-4">
+        <div class="card-header"><div class="card-title">Appointment</div></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Appointment Date</label>
+            {{ form.appointment_date(class="form-control", type="date") }}
+            {% if form.appointment_date.errors %}<div class="form-error">{{ form.appointment_date.errors[0] }}</div>{% endif %}
+          </div>
+          <div class="form-group">
+            <label class="form-label">Time Slot</label>
+            {{ form.appointment_slot(class="form-control") }}
+          </div>
+        </div>
+      </div>
+
+      {# Cart Summary #}
+      <div class="card">
+        <div class="card-header"><div class="card-title">Booking Summary</div></div>
+        <div class="card-body">
+          <div class="flex justify-between mb-2" style="font-size:.875rem;">
+            <span style="color:var(--slate-500);">Tests Selected</span>
+            <span x-text="selected.length" style="font-weight:600;">0</span>
+          </div>
+          <div class="flex justify-between mb-3" style="font-size:.875rem;">
+            <span style="color:var(--slate-500);">Estimated Total</span>
+            <span class="font-mono" style="font-weight:700;font-size:1.0625rem;color:var(--cobalt);"
+                  x-text="'PKR ' + total.toLocaleString('en-PK')">PKR 0</span>
+          </div>
+          <div style="font-size:.75rem;color:var(--slate-500);background:var(--amber-light);border-radius:6px;padding:.5rem .75rem;margin-bottom:1rem;">
+            💳 Payment is collected at the reception counter on the day of your visit.
+          </div>
+          <button type="submit" class="btn btn-primary w-full" style="justify-content:center;"
+                  :disabled="selected.length === 0"
+                  :class="selected.length === 0 ? 'opacity-50 cursor-not-allowed' : ''">
+            <i data-lucide="calendar-check" style="width:15px;height:15px;"></i> Confirm Booking
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

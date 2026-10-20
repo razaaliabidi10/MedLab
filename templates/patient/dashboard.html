@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}My Bookings{% endblock %}
+{% block page_title %}My Diagnostic Bookings{% endblock %}
+{% block page_subtitle %}Track your test bookings and download reports{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('patient.book_test') }}" class="btn btn-primary btn-sm">
+  <i data-lucide="calendar-plus" style="width:14px;height:14px;"></i> Book New Test
+</a>
+{% endblock %}
+
+{% block content %}
+{% if bookings %}
+<div style="display:flex;flex-direction:column;gap:1rem;">
+  {% for b in bookings %}
+  <div class="card">
+    <div style="padding:1rem 1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-mono" style="font-size:.875rem;font-weight:600;">{{ b.booking_ref }}</span>
+          {% set sc = {'Booked':'badge-blue','Sample_Collected':'badge-amber','In_Analysis':'badge-violet','Completed':'badge-green','Cancelled':'badge-red'} %}
+          <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
+        </div>
+        <div style="font-size:.8125rem;color:var(--slate-500);">
+          📅 {{ b.appointment_date }} &nbsp;·&nbsp; 🕐 {{ b.appointment_slot }}
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div class="font-mono" style="font-size:1rem;font-weight:700;color:var(--slate-900);">
+          PKR {{ "{:,.0f}".format((b.total_amount or 0)|float) }}
+        </div>
+        <div style="margin-top:.25rem;">
+          {% if b.payment_status == 'Paid' %}<span class="badge badge-green">Paid</span>
+          {% else %}<span class="badge badge-amber">Unpaid — Visit Counter</span>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Progress Steps #}
+    {% set statuses = ['Booked','Sample_Collected','In_Analysis','Completed'] %}
+    {% set cur_idx = statuses.index(b.booking_status) if b.booking_status in statuses else 0 %}
+    <div style="padding:.75rem 1.25rem;border-top:1px solid var(--slate-100);border-bottom:1px solid var(--slate-100);background:var(--slate-50);">
+      <div class="status-steps">
+        {% for i in range(statuses|length) %}
+          <div class="step-node">
+            <div class="step-dot {{ 'done' if i < cur_idx else ('active' if i == cur_idx else '') }}">
+              {% if i < cur_idx %}<i data-lucide="check" style="width:10px;height:10px;"></i>
+              {% else %}{{ i+1 }}{% endif %}
+            </div>
+            <div class="step-label">{{ statuses[i] | replace('_',' ') }}</div>
+          </div>
+          {% if i < statuses|length - 1 %}<div class="step-line {{ 'done' if i < cur_idx else '' }}"></div>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="padding:.75rem 1.25rem;display:flex;gap:.625rem;flex-wrap:wrap;">
+      <a href="{{ url_for('patient.booking_detail', booking_id=b.booking_id) }}" class="btn btn-ghost btn-sm">
+        <i data-lucide="file-text" style="width:13px;height:13px;"></i> View Details
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body">
+    <div class="empty-state">
+      <i data-lucide="calendar-x" style="width:40px;height:40px;"></i>
+      <p>No bookings yet.</p>
+      <a href="{{ url_for('patient.book_test') }}" class="btn btn-primary mt-4">
+        <i data-lucide="calendar-plus" style="width:14px;height:14px;"></i> Book Your First Test
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Enter Results — {{ sample.barcode_string }}{% endblock %}
+{% block page_title %}Enter Biomarker Results{% endblock %}
+{% block page_subtitle %}{{ sample.test_name }} · Barcode: {{ sample.barcode_string }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('technician.dashboard') }}" class="btn btn-ghost btn-sm">
+  <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Worklist
+</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;align-items:start;">
+
+  {# ── Result Entry Form ── #}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Biomarker Parameters — {{ sample.test_name }}</div>
+        <div style="font-size:.75rem;color:var(--slate-500);margin-top:.25rem;">
+          Enter numeric measured values. The system automatically flags LOW / NORMAL / HIGH.
+        </div>
+      </div>
+    </div>
+    <form method="POST" action="{{ url_for('technician.enter_results', item_id=sample.item_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="card-body">
+        <div style="overflow-x:auto;">
+          <table style="width:100%;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Parameter</th>
+                <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Unit</th>
+                <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Reference Range</th>
+                <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Measured Value</th>
+                {% if params[0].flag_status is defined %}
+                <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Flag</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in params %}
+              <tr style="border-bottom:1px solid var(--slate-100);">
+                <td style="padding:.625rem .75rem;font-size:.875rem;font-weight:500;">{{ p.param_name }}</td>
+                <td style="padding:.625rem .75rem;" class="font-mono" style="font-size:.8125rem;">{{ p.unit }}</td>
+                <td style="padding:.625rem .75rem;" class="font-mono" style="font-size:.8125rem;color:var(--slate-500);">
+                  {{ p.min_range }} – {{ p.max_range }}
+                </td>
+                <td style="padding:.375rem .75rem;">
+                  <input
+                    type="number"
+                    name="param_{{ p.param_id }}"
+                    step="0.01"
+                    min="0"
+                    class="form-control font-mono"
+                    value="{{ p.measured_value if p.measured_value is not none else '' }}"
+                    placeholder="0.00"
+                    style="width:120px;font-family:'JetBrains Mono',monospace;"
+                  >
+                </td>
+                {% if p.flag_status is not none and p.flag_status %}
+                <td style="padding:.625rem .75rem;">
+                  <span class="badge {% if p.flag_status == 'HIGH' %}badge-red flag-high{% elif p.flag_status == 'LOW' %}badge-blue flag-low{% else %}badge-green{% endif %}">
+                    {{ p.flag_status }}
+                  </span>
+                </td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--slate-200);display:flex;gap:.75rem;justify-content:flex-end;">
+          <a href="{{ url_for('technician.dashboard') }}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="save" style="width:14px;height:14px;"></i> Save &amp; Finalize Report
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {# ── Sample Info ── #}
+  <div class="card">
+    <div class="card-header"><div class="card-title">Sample Info</div></div>
+    <div class="card-body">
+      <div class="mb-3">
+        <div style="font-size:.75rem;color:var(--slate-500);margin-bottom:.25rem;">Barcode</div>
+        <div class="font-mono" style="font-size:.875rem;font-weight:600;color:var(--slate-900);">{{ sample.barcode_string }}</div>
+      </div>
+      <div class="mb-3">
+        <div style="font-size:.75rem;color:var(--slate-500);margin-bottom:.25rem;">Patient</div>
+        <div style="font-weight:600;">{{ sample.patient_name }}</div>
+      </div>
+      <div class="mb-3">
+        <div style="font-size:.75rem;color:var(--slate-500);margin-bottom:.25rem;">Booking Ref</div>
+        <div class="font-mono" style="font-size:.8125rem;">{{ sample.booking_ref }}</div>
+      </div>
+      <div class="mb-3">
+        <div style="font-size:.75rem;color:var(--slate-500);margin-bottom:.25rem;">Test</div>
+        <div style="font-size:.875rem;">{{ sample.test_name }}</div>
+        <div><span class="badge badge-slate mt-1">{{ sample.sample_type }}</span></div>
+      </div>
+      <div>
+        <div style="font-size:.75rem;color:var(--slate-500);margin-bottom:.25rem;">Lab Technician</div>
+        <div style="font-size:.875rem;">{{ current_user.full_name }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

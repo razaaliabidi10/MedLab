@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Field Collection Queue{% endblock %}
+{% block page_title %}Sample Collection Tasks{% endblock %}
+{% block page_subtitle %}Manage confirmed sample collections and home visits{% endblock %}
+
+{% block content %}
+<div class="stats-grid mb-6" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;margin-bottom:1.5rem;">
+  <div class="card" style="padding:1.25rem;">
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-bottom:.25rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Pending Collections</div>
+    <div style="font-size:2rem;font-weight:700;color:var(--amber);">{{ stats.pending_collections }}</div>
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-top:.25rem;">Confirmed bookings ready</div>
+  </div>
+
+  <div class="card" style="padding:1.25rem;">
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-bottom:.25rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Collected Today</div>
+    <div style="font-size:2rem;font-weight:700;color:var(--emerald);">{{ stats.collected_today }}</div>
+    <div style="font-size:.8125rem;color:var(--slate-500);margin-top:.25rem;">Samples collected</div>
+  </div>
+</div>
+
+<div class="card mb-6">
+  <div class="card-header">
+    <div class="card-title">Assigned Collections Queue</div>
+    <span class="badge badge-amber">{{ collection_queue | length }} ready</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Booking Ref</th>
+          <th>Patient Details</th>
+          <th>Collection Type</th>
+          <th>Scheduled Time</th>
+          <th>Tests to Collect</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in collection_queue %}
+        <tr>
+          <td><span class="font-mono font-bold" style="font-size:.8125rem;color:var(--slate-900);">{{ b.booking_ref }}</span></td>
+          <td>
+            <div style="font-weight:600;">{{ b.patient_name }}</div>
+            <div style="font-size:.8125rem;color:var(--slate-500);">{{ b.patient_phone }}</div>
+            {% if b.collection_type == 'Home' and b.collection_address %}
+              <div style="font-size:.75rem;color:var(--primary);margin-top:2px;">
+                <i data-lucide="map-pin" style="width:11px;height:11px;display:inline;"></i> {{ b.collection_address }}
+              </div>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.collection_type == 'Home' %}
+              <span class="badge badge-indigo">Home Visit</span>
+            {% else %}
+              <span class="badge badge-slate">Lab Counter</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.8125rem;">
+            {{ b.appointment_date }}<br>
+            <span style="color:var(--slate-500);">{{ b.appointment_slot }}</span>
+          </td>
+          <td style="max-width:240px;font-size:.8125rem;">
+            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ b.test_names }}">
+              {{ b.test_names }}
+            </div>
+            <span class="badge badge-slate" style="font-size:.75rem;margin-top:3px;">{{ b.total_tests }} item(s)</span>
+          </td>
+          <td>
+            <div style="display:flex;gap:.5rem;align-items:center;">
+              <form action="{{ url_for('collector.collect', booking_id=b.booking_id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary btn-sm">
+                  <i data-lucide="barcode" style="width:13px;height:13px;"></i> Mark Collected
+                </button>
+              </form>
+
+              <button type="button" class="btn btn-outline btn-sm" style="color:var(--rose);" onclick="document.getElementById('reject-box-{{ b.booking_id }}').style.display='block';">
+                Reject
+              </button>
+            </div>
+
+            <div id="reject-box-{{ b.booking_id }}" style="display:none;margin-top:.5rem;padding:.5rem;background:#FEF2F2;border:1px solid #FECACA;border-radius:.375rem;">
+              <form action="{{ url_for('collector.reject', booking_id=b.booking_id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="rejection_reason" placeholder="Reason (e.g., Insufficient sample)" required class="form-control" style="font-size:.75rem;margin-bottom:.25rem;">
+                <div style="display:flex;gap:.25rem;">
+                  <button type="submit" class="btn btn-sm btn-primary" style="background:#DC2626;border-color:#DC2626;font-size:.75rem;padding:.2rem .5rem;">Confirm Rejection</button>
+                  <button type="button" class="btn btn-sm btn-outline" style="font-size:.75rem;padding:.2rem .5rem;" onclick="document.getElementById('reject-box-{{ b.booking_id }}').style.display='none';">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6">
+            <div class="empty-state" style="padding:2.5rem;text-align:center;">
+              <i data-lucide="check-circle" style="width:36px;height:36px;color:var(--emerald);margin:0 auto 0.75rem auto;display:block;"></i>
+              <p style="font-weight:600;color:var(--slate-700);">No pending collections in queue!</p>
+              <p style="font-size:.8125rem;color:var(--slate-400);">All confirmed bookings have had samples collected.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

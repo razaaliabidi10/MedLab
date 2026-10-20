@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Test Catalog{% endblock %}
+{% block page_title %}Test Catalog &amp; Biomarkers{% endblock %}
+{% block page_subtitle %}Manage lab tests and diagnostic parameters{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" @click="$dispatch('open-test-modal')" x-data>
+  <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Lab Test
+</button>
+<button class="btn btn-ghost btn-sm" @click="$dispatch('open-param-modal')" x-data>
+  <i data-lucide="activity" style="width:14px;height:14px;"></i> Add Biomarker
+</button>
+{% endblock %}
+
+{% block content %}
+
+{# ── Modal: Add Lab Test ── #}
+<div x-data="{ open: false }" @open-test-modal.window="open=true" x-show="open" x-cloak>
+  <div class="modal-overlay" @click.self="open=false">
+    <div class="modal-box" @click.stop>
+      <div class="modal-header">
+        <div class="modal-title">Add New Lab Test</div>
+        <button @click="open=false" style="background:none;border:none;cursor:pointer;color:var(--slate-400);">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <form method="POST" action="{{ url_for('admin.add_test') }}">
+        {{ test_form.hidden_tag() }}
+        <div class="modal-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              {{ test_form.category_id(class="form-control") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Test Code</label>
+              {{ test_form.test_code(class="form-control", placeholder="e.g. HEM-CBC") }}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Test Name</label>
+            {{ test_form.test_name(class="form-control", placeholder="e.g. Complete Blood Count") }}
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Sample Type</label>
+              {{ test_form.sample_type(class="form-control") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Price (PKR)</label>
+              {{ test_form.price(class="form-control", placeholder="1500.00") }}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Turnaround Hours</label>
+            {{ test_form.turnaround_hours(class="form-control", placeholder="24") }}
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pre-Test Instructions</label>
+            {{ test_form.pre_test_instructions(class="form-control", rows=2, placeholder="e.g. 8 hours fasting required.") }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" @click="open=false">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="plus-circle" style="width:14px;height:14px;"></i> Add Test
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Add Biomarker Parameter ── #}
+<div x-data="{ open: false }" @open-param-modal.window="open=true" x-show="open" x-cloak>
+  <div class="modal-overlay" @click.self="open=false">
+    <div class="modal-box" @click.stop>
+      <div class="modal-header">
+        <div class="modal-title">Add Biomarker Parameter</div>
+        <button @click="open=false" style="background:none;border:none;cursor:pointer;color:var(--slate-400);">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <form method="POST" action="{{ url_for('admin.add_param') }}">
+        {{ param_form.hidden_tag() }}
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Lab Test</label>
+            {{ param_form.test_id(class="form-control") }}
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parameter Name</label>
+            {{ param_form.param_name(class="form-control", placeholder="e.g. Hemoglobin (Hb)") }}
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Unit</label>
+              {{ param_form.unit(class="form-control", placeholder="g/dL") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Display Order</label>
+              {{ param_form.display_order(class="form-control", placeholder="1") }}
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Min Range</label>
+              {{ param_form.min_range(class="form-control", placeholder="13.00") }}
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Range</label>
+              {{ param_form.max_range(class="form-control", placeholder="17.00") }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" @click="open=false">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="activity" style="width:14px;height:14px;"></i> Add Biomarker
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Tests Table ── #}
+<div class="card mb-4">
+  <div class="card-header">
+    <div class="card-title">Lab Tests</div>
+    <span class="badge badge-blue">{{ tests | length }}</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Code</th><th>Test Name</th><th>Category</th><th>Sample</th><th>Price (PKR)</th><th>TAT (hrs)</th><th>Params</th></tr>
+      </thead>
+      <tbody>
+        {% for t in tests %}
+        <tr>
+          <td class="font-mono" style="font-size:.8125rem;">{{ t.test_code }}</td>
+          <td style="font-weight:500;">{{ t.test_name }}</td>
+          <td><span class="badge badge-slate">{{ t.category_name }}</span></td>
+          <td style="font-size:.8125rem;">{{ t.sample_type }}</td>
+          <td class="font-mono">{{ "{:,.0f}".format(t.price|float) }}</td>
+          <td>{{ t.turnaround_hours }}</td>
+          <td>
+            {% set pc = params | selectattr('test_name','eq',t.test_name) | list | length %}
+            <span class="badge badge-{{ 'green' if pc > 0 else 'amber' }}">{{ pc }} params</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Parameters Table ── #}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Biomarker Parameters</div>
+    <span class="badge badge-violet">{{ params | length }}</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Test</th><th>Parameter</th><th>Unit</th><th>Min</th><th>Max</th><th>Order</th></tr>
+      </thead>
+      <tbody>
+        {% for p in params %}
+        <tr>
+          <td style="font-size:.8125rem;font-weight:500;">{{ p.test_name }}</td>
+          <td>{{ p.param_name }}</td>
+          <td class="font-mono" style="font-size:.8125rem;">{{ p.unit }}</td>
+          <td class="font-mono" style="font-size:.8125rem;color:var(--cobalt);">{{ p.min_range }}</td>
+          <td class="font-mono" style="font-size:.8125rem;color:var(--crimson);">{{ p.max_range }}</td>
+          <td>{{ p.display_order }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6"><div class="empty-state"><p>No parameters defined yet.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>[x-cloak]{display:none!important;}</style>
+{% endblock %}
