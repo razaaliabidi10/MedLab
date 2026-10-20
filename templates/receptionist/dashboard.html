@@ -14,6 +14,9 @@
   </div>
 </form>
 
+{# ── Recent Notifications Panel ── #}
+{% include "notifications/_dashboard_panel.html" %}
+
 <div class="card">
   <div class="card-header">
     <div class="card-title">{{ 'Search Results for "' + q + '"' if q else 'Recent Bookings' }}</div>

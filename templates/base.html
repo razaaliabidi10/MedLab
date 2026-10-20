@@ -139,10 +139,12 @@
         </span>
 
         {# Notification Bell with Unread Badge #}
-        <div style="position:relative;" id="notification-bell-container" x-data="{ unreadCount: 0 }">
-          <a href="/notifications" title="Notifications" class="btn btn-outline btn-sm" style="padding:0.4375rem;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;position:relative;">
+        <div style="position:relative;" id="notification-bell-container">
+          <a href="{{ url_for('notifications.index') }}" title="Notifications" class="btn btn-outline btn-sm" style="padding:0.4375rem;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;position:relative;">
             <i data-lucide="bell" style="width:16px;height:16px;"></i>
-            <span id="bell-unread-count" class="bell-badge" style="display:none;"></span>
+            <span id="bell-unread-count" class="bell-badge" style="{% if not unread_notification_count or unread_notification_count == 0 %}display:none;{% else %}display:flex;{% endif %}">
+              {{ unread_notification_count or '' }}
+            </span>
           </a>
         </div>
 
@@ -204,6 +206,9 @@
 <main class="public-content-wrap">{% block public_content %}{% endblock %}</main>
 {% endif %}
 
+{# ── Toast Notifications Container ── #}
+<div id="toast-container" class="toast-container"></div>
+
 <script>
   function refreshIcons() {
     if (window.lucide) {
@@ -212,6 +217,64 @@
   }
   document.addEventListener('DOMContentLoaded', refreshIcons);
   document.addEventListener('alpine:initialized', refreshIcons);
+
+  {% if current_user.is_authenticated %}
+  let lastUnreadCount = {{ unread_notification_count or 0 }};
+
+  function showNotificationToast(title, message) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-item';
+    toast.innerHTML = `
+      <div style="width:28px;height:28px;border-radius:6px;background:#DCFCE7;color:#166534;display:grid;place-items:center;flex-shrink:0;">
+        <i data-lucide="bell" style="width:15px;height:15px;"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:0.8125rem;font-weight:700;color:var(--navy-ink);">${title || 'New Notification'}</div>
+        <div style="font-size:0.75rem;color:var(--navy-muted);margin-top:0.125rem;">${message}</div>
+      </div>
+      <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:var(--navy-subtle);padding:0.2rem;">
+        <i data-lucide="x" style="width:13px;height:13px;"></i>
+      </button>
+    `;
+    container.appendChild(toast);
+    if (window.lucide) lucide.createIcons();
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      setTimeout(() => toast.remove(), 300);
+    }, 5000);
+  }
+
+  function pollNotifications() {
+    fetch('{{ url_for("notifications.api_unread_count") }}')
+      .then(res => res.json())
+      .then(data => {
+        const count = data.unread_count || 0;
+        const badge = document.getElementById('bell-unread-count');
+        if (badge) {
+          if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'flex';
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+        if (count > lastUnreadCount) {
+          const diff = count - lastUnreadCount;
+          showNotificationToast('Activity Alert', `You have ${diff} new notification${diff > 1 ? 's' : ''}.`);
+        }
+        lastUnreadCount = count;
+      })
+      .catch(() => {});
+  }
+
+  // 10-second polling for active session
+  setInterval(pollNotifications, 10000);
+  {% endif %}
 </script>
 </body>
 </html>

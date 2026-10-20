@@ -29,6 +29,7 @@ def create_app():
     from routes.collector import collector_bp
     from routes.pathologist import pathologist_bp
     from routes.auth_google import google_bp
+    from routes.notifications import notifications_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
@@ -38,6 +39,32 @@ def create_app():
     app.register_blueprint(collector_bp)
     app.register_blueprint(pathologist_bp)
     app.register_blueprint(google_bp)
+    app.register_blueprint(notifications_bp)
+
+    @app.context_processor
+    def inject_notifications():
+        from flask_login import current_user
+        from db import query_db
+        if current_user and current_user.is_authenticated:
+            try:
+                unread = query_db(
+                    "SELECT COUNT(*) AS c FROM notifications WHERE user_id = %s AND is_read = 0",
+                    (current_user.id,), one=True
+                )
+                recent_notifs = query_db(
+                    "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC LIMIT 5",
+                    (current_user.id,)
+                )
+                return {
+                    "unread_notification_count": unread["c"] if unread else 0,
+                    "recent_notifications": recent_notifs or []
+                }
+            except Exception:
+                pass
+        return {
+            "unread_notification_count": 0,
+            "recent_notifications": []
+        }
 
     @app.errorhandler(403)
     def forbidden(e):

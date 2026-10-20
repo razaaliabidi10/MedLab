@@ -1,0 +1,93 @@
+{# ── Notifications Dashboard Panel (Latest 5, Newest First) ── #}
+<div class="card mb-6" style="border:1px solid var(--card-border);background:#FFFFFF;box-shadow:var(--shadow-card);margin-bottom:1.5rem;">
+  <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--card-border);">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:28px;height:28px;border-radius:6px;background:var(--primary-light);color:var(--primary);display:grid;place-items:center;">
+        <i data-lucide="bell" style="width:15px;height:15px;"></i>
+      </div>
+      <div>
+        <h3 class="card-title" style="font-size:0.9375rem;font-weight:700;color:var(--navy-ink);margin:0;">Recent Notifications</h3>
+        <p style="font-size:0.75rem;color:var(--navy-muted);margin:0;">Latest 5 activity updates and critical alerts</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+      {% if unread_notification_count and unread_notification_count > 0 %}
+        <span class="badge badge-green font-mono" style="font-size:0.6875rem;">
+          {{ unread_notification_count }} Unread
+        </span>
+      {% endif %}
+      <a href="{{ url_for('notifications.index') }}" class="btn btn-outline btn-sm" style="font-size:0.75rem;padding:0.25rem 0.625rem;">
+        View All <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+      </a>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;">
+    {% if recent_notifications %}
+      {% for n in recent_notifications %}
+      <a href="{{ url_for('notifications.detail', notification_id=n.notification_id) }}"
+         style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:0.875rem 1.25rem;text-decoration:none;border-bottom:1px solid var(--card-border);transition:background 0.15s;position:relative;"
+         onmouseover="this.style.background='#F8FAFC'"
+         onmouseout="this.style.background='transparent'">
+        
+        <div style="display:flex;align-items:flex-start;gap:0.75rem;">
+          {# Unread Indicator Dot #}
+          <div style="padding-top:0.35rem;width:12px;display:flex;justify-content:center;">
+            {% if not n.is_read %}
+              <span class="unread-dot" title="Unread" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#166534;box-shadow:0 0 0 2px #DCFCE7;"></span>
+            {% else %}
+              <span style="display:inline-block;width:8px;height:8px;"></span>
+            {% endif %}
+          </div>
+
+          {# Type Icon #}
+          <div style="width:32px;height:32px;border-radius:8px;background:{% if n.type == 'result' %}#DCFCE7{% elif n.type == 'sample' %}#FEF3C7{% elif n.type == 'booking' %}#E0F2FE{% else %}#F1F5F9{% endif %};color:{% if n.type == 'result' %}#166534{% elif n.type == 'sample' %}#D97706{% elif n.type == 'booking' %}#0284C7{% else %}#475569{% endif %};display:grid;place-items:center;flex-shrink:0;">
+            {% if n.type == 'result' %}
+              <i data-lucide="file-check-2" style="width:16px;height:16px;"></i>
+            {% elif n.type == 'sample' %}
+              <i data-lucide="test-tube" style="width:16px;height:16px;"></i>
+            {% elif n.type == 'booking' %}
+              <i data-lucide="calendar" style="width:16px;height:16px;"></i>
+            {% elif n.type == 'payment' %}
+              <i data-lucide="credit-card" style="width:16px;height:16px;"></i>
+            {% else %}
+              <i data-lucide="bell" style="width:16px;height:16px;"></i>
+            {% endif %}
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <span style="font-weight:{% if not n.is_read %}700{% else %}600{% endif %};color:var(--navy-ink);font-size:0.875rem;">
+                {{ n.title }}
+              </span>
+              <span class="badge {% if n.type == 'result' %}badge-green{% elif n.type == 'sample' %}badge-amber{% else %}badge-slate{% endif %}" style="font-size:0.625rem;text-transform:uppercase;">
+                {{ n.type }}
+              </span>
+            </div>
+            <p style="font-size:0.8125rem;color:var(--navy-muted);margin:0.25rem 0 0;line-height:1.4;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;">
+              {{ n.message }}
+            </p>
+          </div>
+        </div>
+
+        <div style="text-align:right;flex-shrink:0;">
+          <span style="font-size:0.6875rem;color:var(--navy-subtle);white-space:nowrap;">
+            {{ n.created_at.strftime('%d %b, %H:%M') if n.created_at else '' }}
+          </span>
+          <div style="margin-top:0.25rem;">
+            <i data-lucide="chevron-right" style="width:14px;height:14px;color:var(--navy-subtle);display:inline;"></i>
+          </div>
+        </div>
+
+      </a>
+      {% endfor %}
+    {% else %}
+      <div style="padding:2rem 1rem;text-align:center;">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--bg-page);display:grid;place-items:center;margin:0 auto 0.5rem auto;">
+          <i data-lucide="bell-off" style="width:18px;height:18px;color:var(--navy-subtle);"></i>
+        </div>
+        <p style="font-size:0.875rem;color:var(--navy-muted);margin:0;">No notifications found.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
