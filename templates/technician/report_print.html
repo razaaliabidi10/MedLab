@@ -2,27 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Diagnostic Report — {{ item.booking_ref }} / {{ item.test_code }}</title>
+  <title>Diagnostic Report — {{ item.booking_ref }} — {{ item.test_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
-    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-    body { font-family:'Inter',sans-serif; background:#F8FAFC; color:#0F172A; }
-    .wrapper { max-width:860px; margin:2rem auto; background:#fff; border:1px solid #E2E8F0; border-radius:10px; overflow:hidden; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',sans-serif; background:#F8FAFC; color:#0F172A; padding:2rem; }
+    .wrapper { max-width:820px; margin:0 auto; background:#fff; border:1px solid #E2E8F0; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.06); overflow:hidden; }
 
-    /* Header */
-    .report-header { background:#0F172A; color:#fff; padding:1.5rem 2rem; display:flex; justify-content:space-between; align-items:flex-start; }
-    .lab-name { font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
-    .lab-sub  { font-size:.75rem; color:#94A3B8; margin-top:.125rem; }
-    .report-label { font-family:'JetBrains Mono',monospace; font-size:.6875rem; background:rgba(37,99,235,.25); border:1px solid rgba(37,99,235,.4); color:#93C5FD; padding:.25rem .75rem; border-radius:999px; }
+    /* Report Header */
+    .report-header { padding:2rem 2rem 1.5rem; border-bottom:2px solid #0F172A; display:flex; justify-content:space-between; align-items:flex-start; }
+    .lab-name { font-size:1.25rem; font-weight:700; letter-spacing:-.01em; color:#0F172A; }
+    .lab-sub  { font-size:.75rem; color:#64748B; margin-top:.125rem; }
+    .report-label { font-family:'JetBrains Mono',monospace; font-size:.6875rem; background:#DCFCE7; border:1px solid #BBF7D0; color:#166534; padding:.25rem .75rem; border-radius:999px; font-weight:700; }
 
     /* Meta Band */
-    .meta-band { background:#F1F5F9; border-bottom:1px solid #E2E8F0; padding:1rem 2rem; display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+    .meta-band { background:#F8FAFC; border-bottom:1px solid #E2E8F0; padding:1rem 2rem; display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
     .meta-item .mk { font-size:.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:#64748B; }
     .meta-item .mv { font-size:.875rem; font-weight:600; color:#0F172A; margin-top:.125rem; }
 
     /* Patient Section */
     .patient-section { padding:1rem 2rem; border-bottom:1px solid #E2E8F0; display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    .section-hdr { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#2563EB; margin-bottom:.625rem; }
+    .section-hdr { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#166534; margin-bottom:.625rem; }
     .info-row { display:flex; gap:.5rem; margin-bottom:.25rem; font-size:.8125rem; }
     .info-key { color:#64748B; min-width:110px; }
     .info-val { font-weight:500; color:#0F172A; }
@@ -53,23 +55,23 @@
 
     .flag-badge { display:inline-block; padding:.125rem .5rem; border-radius:999px; font-size:.625rem; font-weight:700; }
     .flag-high   { background:#FEE2E2; color:#DC2626; }
-    .flag-low    { background:#DBEAFE; color:#2563EB; }
-    .flag-normal { background:#D1FAE5; color:#059669; }
+    .flag-low    { background:#FEF3C7; color:#D97706; }
+    .flag-normal { background:#DCFCE7; color:#166534; }
 
     /* Footer */
     .report-footer { padding:1rem 2rem; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; background:#F8FAFC; }
-    .footer-note { font-size:.6875rem; color:#94A3B8; max-width:420px; }
-    .print-btn { padding:.5rem 1.25rem; background:#2563EB; color:#fff; border:none; border-radius:6px; font-size:.875rem; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:.375rem; }
-    .print-btn:hover { background:#1D4ED8; }
+    .footer-note { font-size:.6875rem; color:#64748B; max-width:440px; line-height:1.4; }
+    .print-btn { padding:.5rem 1.25rem; background:#166534; color:#fff; border:none; border-radius:6px; font-size:.875rem; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:.375rem; font-weight:600; }
+    .print-btn:hover { background:#14532D; }
 
     @media print {
-      body { background:#fff; }
+      body { background:#fff; padding:0; }
       .wrapper { margin:0; border:none; border-radius:0; box-shadow:none; }
       .print-btn, .no-print { display:none !important; }
       .results-table tr.abnormal { background:#FFF5F5 !important; -webkit-print-color-adjust:exact; }
-      .flag-high   { color:#DC2626 !important; }
-      .flag-low    { color:#2563EB !important; }
-      .flag-normal { color:#059669 !important; }
+      .flag-high   { color:#DC2626 !important; font-weight:700; }
+      .flag-low    { color:#D97706 !important; font-weight:700; }
+      .flag-normal { color:#166534 !important; }
     }
   </style>
 </head>
@@ -78,12 +80,12 @@
   {# Header #}
   <div class="report-header">
     <div>
-      <div class="lab-name">🧪 MedLab Diagnostics</div>
+      <div class="lab-name">MedLab Diagnostics</div>
       <div class="lab-sub">ISO-Certified Clinical Laboratory · Karachi, Pakistan</div>
     </div>
     <div style="text-align:right;">
       <div class="report-label">DIAGNOSTIC REPORT</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:#94A3B8;margin-top:.5rem;">{{ item.booking_ref }}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:#64748B;margin-top:.5rem;">{{ item.booking_ref }}</div>
     </div>
   </div>
 
@@ -136,7 +138,7 @@
     </div>
     <div style="margin-left:auto;text-align:right;">
       {% if item.sample_status == 'Analyzed' %}
-        <span style="display:inline-flex;align-items:center;gap:.25rem;background:#D1FAE5;color:#059669;padding:.25rem .75rem;border-radius:999px;font-size:.75rem;font-weight:700;">✓ Verified</span>
+        <span style="display:inline-flex;align-items:center;gap:.25rem;background:#DCFCE7;color:#166534;padding:.25rem .75rem;border-radius:999px;font-size:.75rem;font-weight:700;">Verified</span>
       {% endif %}
     </div>
   </div>
@@ -159,11 +161,11 @@
       <tbody>
         {% for r in results %}
         <tr class="{{ 'abnormal' if r.is_abnormal else '' }}">
-          <td style="color:#94A3B8;">{{ loop.index }}</td>
+          <td style="color:#64748B;">{{ loop.index }}</td>
           <td style="font-family:'Inter',sans-serif;font-weight:{% if r.is_abnormal %}600{% else %}400{% endif %};">
             {{ r.param_name }}
           </td>
-          <td style="font-weight:700;{% if r.flag_status == 'HIGH' %}color:#DC2626;{% elif r.flag_status == 'LOW' %}color:#2563EB;{% else %}color:#0F172A;{% endif %}">
+          <td style="font-weight:700;{% if r.flag_status == 'HIGH' %}color:#DC2626;{% elif r.flag_status == 'LOW' %}color:#D97706;{% else %}color:#0F172A;{% endif %}">
             {{ r.measured_value }}
           </td>
           <td style="color:#64748B;">{{ r.unit }}</td>
@@ -176,18 +178,18 @@
       </tbody>
     </table>
     {% else %}
-    <p style="color:#94A3B8;margin-top:.75rem;">No results recorded.</p>
+    <p style="color:#64748B;margin-top:.75rem;">No results recorded.</p>
     {% endif %}
   </div>
 
   {# Footer #}
   <div class="report-footer">
     <div class="footer-note">
-      ⚠️ This report is for informational purposes only. Please consult a qualified physician for medical advice based on these results.
+      This report is for informational purposes only. Please consult a qualified physician for medical advice based on these results.
       MedLab Diagnostics — ISO-Certified Clinical Laboratory.
     </div>
     <button class="print-btn no-print" onclick="window.print()">
-      🖨️ Print Report
+      Print Diagnostic Report
     </button>
   </div>
 </div>

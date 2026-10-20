@@ -18,11 +18,12 @@
       <div>
         <div class="flex items-center gap-2 mb-1">
           <span class="font-mono" style="font-size:.875rem;font-weight:600;">{{ b.booking_ref }}</span>
-          {% set sc = {'Booked':'badge-blue','Sample_Collected':'badge-amber','In_Analysis':'badge-violet','Completed':'badge-green','Cancelled':'badge-red'} %}
+          {% set sc = {'Booked':'badge-green','Sample_Collected':'badge-amber','In_Analysis':'badge-slate','Completed':'badge-green','Cancelled':'badge-red'} %}
           <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
         </div>
-        <div style="font-size:.8125rem;color:var(--slate-500);">
-          📅 {{ b.appointment_date }} &nbsp;·&nbsp; 🕐 {{ b.appointment_slot }}
+        <div style="font-size:.8125rem;color:var(--slate-500);display:flex;align-items:center;gap:0.75rem;">
+          <span><i data-lucide="calendar" style="width:13px;height:13px;display:inline;vertical-align:-1px;"></i> {{ b.appointment_date }}</span>
+          <span><i data-lucide="clock" style="width:13px;height:13px;display:inline;vertical-align:-1px;"></i> {{ b.appointment_slot }}</span>
         </div>
       </div>
       <div style="text-align:right;">

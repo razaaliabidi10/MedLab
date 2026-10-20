@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Book a Test{% endblock %}
 {% block page_title %}Book Diagnostic Tests{% endblock %}
-{% block page_subtitle %}Select tests, choose your appointment slot{% endblock %}
+{% block page_subtitle %}Select tests and choose an appointment time{% endblock %}
 
 {% block content %}
 <form method="POST" action="{{ url_for('patient.book_test') }}"
@@ -15,7 +15,7 @@
       <div class="card mb-4">
         <div class="card-header">
           <div class="card-title">Select Tests</div>
-          <span class="badge badge-blue" x-text="selected.length + ' selected'">0 selected</span>
+          <span class="badge badge-green" x-text="selected.length + ' selected'">0 selected</span>
         </div>
         <div class="card-body">
           {% set current_cat = namespace(name='') %}
@@ -26,11 +26,10 @@
                 {{ test.category_name }}
               </div>
             {% endif %}
-            <label style="display:flex;align-items:center;gap:.75rem;padding:.75rem;border:1px solid var(--slate-200);border-radius:8px;cursor:pointer;margin-bottom:.5rem;transition:border-color .15s,background .15s;"
-                   :class="selected.includes({{ test.test_id }}) ? 'border-cobalt' : ''"
-                   :style="selected.includes({{ test.test_id }}) ? 'border-color:var(--cobalt);background:var(--cobalt-50);' : ''">
+            <label style="display:flex;align-items:center;gap:.75rem;padding:.75rem;border:1px solid var(--card-border);border-radius:8px;cursor:pointer;margin-bottom:.5rem;transition:border-color .15s,background .15s;"
+                   :style="selected.includes({{ test.test_id }}) ? 'border-color:var(--primary);background:var(--primary-tint);' : ''">
               <input type="checkbox" name="test_ids" value="{{ test.test_id }}"
-                     style="width:16px;height:16px;accent-color:var(--cobalt);"
+                     style="width:16px;height:16px;accent-color:var(--primary);"
                      @change="
                        if($event.target.checked) {
                          selected.push({{ test.test_id }});
@@ -46,10 +45,10 @@
                   {{ test.sample_type }} · {{ test.turnaround_hours }}h TAT
                 </div>
                 {% if test.pre_test_instructions and test.pre_test_instructions != 'No special preparation required.' %}
-                <div style="font-size:.6875rem;color:var(--amber);margin-top:.25rem;">⚠️ {{ test.pre_test_instructions }}</div>
+                <div style="font-size:.6875rem;color:var(--flag-amber);margin-top:.25rem;">{{ test.pre_test_instructions }}</div>
                 {% endif %}
               </div>
-              <div class="font-mono" style="font-size:.9375rem;font-weight:700;color:var(--cobalt);">
+              <div class="font-mono" style="font-size:.9375rem;font-weight:700;color:var(--primary);">
                 PKR {{ "%.0f"|format(test.price) }}
               </div>
             </label>
@@ -87,13 +86,13 @@
           </div>
           <div class="flex justify-between mb-3" style="font-size:.875rem;">
             <span style="color:var(--slate-500);">Estimated Total</span>
-            <span class="font-mono" style="font-weight:700;font-size:1.0625rem;color:var(--cobalt);"
+            <span class="font-mono" style="font-weight:700;font-size:1.0625rem;color:var(--primary);"
                   x-text="'PKR ' + total.toLocaleString('en-PK')">PKR 0</span>
           </div>
-          <div style="font-size:.75rem;color:var(--slate-500);background:var(--amber-light);border-radius:6px;padding:.5rem .75rem;margin-bottom:1rem;">
-            💳 Payment is collected at the reception counter on the day of your visit.
+          <div style="font-size:.75rem;color:var(--slate-500);background:var(--flag-amber-bg);border:1px solid var(--flag-amber-bdr);border-radius:6px;padding:.5rem .75rem;margin-bottom:1rem;">
+            Payment is collected at the reception counter on the day of your visit.
           </div>
-          <button type="submit" class="btn btn-primary w-full" style="justify-content:center;"
+          <button type="submit" class="btn btn-primary w-full" style="justify-content:center;width:100%;"
                   :disabled="selected.length === 0"
                   :class="selected.length === 0 ? 'opacity-50 cursor-not-allowed' : ''">
             <i data-lucide="calendar-check" style="width:15px;height:15px;"></i> Confirm Booking

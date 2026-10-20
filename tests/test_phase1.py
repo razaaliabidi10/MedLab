@@ -503,9 +503,9 @@ def run_all_tests():
     result = runner.run(suite)
     print("=" * 70)
     if result.wasSuccessful():
-        print("  🎉 PHASE 1: ALL TESTS PASSED SUCCESSFULLY! (18/18)")
+        print("  [PASS] PHASE 1: ALL TESTS PASSED SUCCESSFULLY! (18/18)")
     else:
-        print(f"  ❌ PHASE 1: {len(result.failures)} failures, {len(result.errors)} errors.")
+        print(f"  [FAIL] PHASE 1: {len(result.failures)} failures, {len(result.errors)} errors.")
     print("=" * 70 + "\n")
     return result.wasSuccessful()
 

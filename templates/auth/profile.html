@@ -8,16 +8,16 @@
   <div class="card">
     <div class="card-header">
       <div class="flex items-center gap-3">
-        <div class="avatar avatar-lg" style="background:var(--cobalt-light);">
+        <div class="avatar avatar-lg" style="background:var(--primary-light);">
           {% if current_user.avatar_url and current_user.avatar_url != 'default_avatar.png' %}
             <img src="{{ url_for('static', filename='uploads/avatars/' + current_user.avatar_url) }}" alt="Avatar">
           {% else %}
-            <i data-lucide="user" style="color:var(--cobalt);width:24px;height:24px;"></i>
+            <i data-lucide="user" style="color:var(--primary);width:24px;height:24px;"></i>
           {% endif %}
         </div>
         <div>
           <div class="card-title">{{ current_user.full_name }}</div>
-          <span class="badge badge-blue" style="margin-top:.25rem;">{{ current_user.role_name | title }}</span>
+          <span class="badge badge-green" style="margin-top:.25rem;">{{ current_user.role_name | title }}</span>
         </div>
       </div>
     </div>

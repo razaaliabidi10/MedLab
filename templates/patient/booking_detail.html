@@ -47,13 +47,13 @@
               <td style="font-size:.8125rem;">{{ item.sample_type }}</td>
               <td class="font-mono">PKR {{ "{:,.0f}".format(item.price_at_booking|float) }}</td>
               <td>
-                {% set ic = {'Pending_Sample':'badge-amber','Sample_Collected':'badge-blue','Report_Ready':'badge-green'} %}
+                {% set ic = {'Pending_Sample':'badge-amber','Sample_Collected':'badge-green','Report_Ready':'badge-green'} %}
                 <span class="badge {{ ic.get(item.item_status,'badge-slate') }}">{{ item.item_status | replace('_',' ') }}</span>
               </td>
               <td>
                 {% if item.item_status == 'Report_Ready' %}
                   <a href="{{ url_for('technician.view_report', item_id=item.item_id) }}"
-                     target="_blank" class="btn btn-success btn-sm">
+                     target="_blank" class="btn btn-primary btn-sm">
                     <i data-lucide="file-text" style="width:13px;height:13px;"></i> View Report
                   </a>
                 {% elif item.barcode_string %}
@@ -83,13 +83,13 @@
         <span class="font-mono font-bold" style="font-size:1rem;">PKR {{ "{:,.0f}".format((booking.total_amount or 0)|float) }}</span>
       </div>
       {% if booking.payment_status == 'Paid' %}
-        <span class="badge badge-green w-full" style="justify-content:center;padding:.5rem;">
+        <span class="badge badge-green w-full" style="justify-content:center;padding:.5rem;width:100%;">
           <i data-lucide="check-circle-2" style="width:13px;height:13px;"></i> Paid
           {% if booking.payment_method %} via {{ booking.payment_method | replace('_',' ') }}{% endif %}
         </span>
       {% else %}
-        <div style="background:var(--amber-light);border-radius:6px;padding:.625rem;font-size:.75rem;color:var(--amber);">
-          ⚠️ Payment pending. Please visit the reception counter to pay and initiate sample collection.
+        <div style="background:var(--flag-amber-bg);border:1px solid var(--flag-amber-bdr);border-radius:6px;padding:.625rem;font-size:.75rem;color:var(--flag-amber);">
+          Payment pending. Please visit the reception counter to pay and initiate sample collection.
         </div>
       {% endif %}
       <hr class="divider">

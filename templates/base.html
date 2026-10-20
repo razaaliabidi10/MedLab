@@ -3,8 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}VeraLab System{% endblock %} — VeraLab Diagnostics</title>
+  <title>{% block title %}MedLab System{% endblock %} — MedLab Diagnostics</title>
   <meta name="description" content="{% block meta_desc %}Precision clinical pathology and diagnostic testing laboratory with real-time digital report verification{% endblock %}">
+  
+  {# Fonts: Inter for text, JetBrains Mono for barcodes, prices, reference ranges, and numeric results #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  {# Tailwind CSS CDN with dark green palette #}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#166534',
+              hover: '#14532D',
+              light: '#DCFCE7',
+              tint: '#F0FDF4',
+            },
+            page: '#F6FAF7',
+            card: '#FFFFFF',
+            slate: {
+              900: '#0F172A',
+            },
+            border: '#E2E8F0',
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
   <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -18,7 +53,7 @@
     <div class="sidebar-logo">
       <div class="logo-mark"><i data-lucide="flask-conical" style="color:white;width:20px;height:20px;"></i></div>
       <div>
-        <div class="brand-name">VeraLab</div>
+        <div class="brand-name">MedLab</div>
         <div class="brand-tag">Clinical Diagnostics</div>
       </div>
     </div>
@@ -74,19 +109,16 @@
       <a href="{{ url_for('auth.profile') }}" class="nav-link {% if request.endpoint == 'auth.profile' %}active{% endif %}">
         <i data-lucide="user-circle" style="width:16px;height:16px;"></i> Profile & Security
       </a>
-      <a href="{{ url_for('auth.landing') }}" class="nav-link" target="_blank">
-        <i data-lucide="globe" style="width:16px;height:16px;"></i> Public Website
-      </a>
     </nav>
 
     <div class="sidebar-footer">
       <div class="sidebar-user">
         <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.12);display:grid;place-items:center;flex-shrink:0;">
-          <i data-lucide="user" style="color:#D4E2FF;width:16px;height:16px;"></i>
+          <i data-lucide="user" style="color:#DCFCE7;width:16px;height:16px;"></i>
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:.875rem;font-weight:600;color:#FFFFFF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ current_user.full_name }}</div>
-          <div style="font-size:.75rem;color:rgba(255,255,255,0.5);text-transform:capitalize;">{{ current_user.role_name | replace('_', ' ') }}</div>
+          <div style="font-size:.75rem;color:rgba(255,255,255,0.6);text-transform:capitalize;">{{ current_user.role_name | replace('_', ' ') }}</div>
         </div>
         <a href="{{ url_for('auth.logout') }}" title="Logout" style="color:rgba(255,255,255,0.6);padding:0.25rem;">
           <i data-lucide="log-out" style="width:15px;height:15px;"></i>
@@ -102,14 +134,15 @@
         <div class="topbar-subtitle">{% block page_subtitle %}{% endblock %}</div>
       </div>
       <div style="display:flex;align-items:center;gap:1rem;">
-        <span class="pill-tag" style="background:#FAFBFD;border-color:var(--card-border);color:var(--navy-muted);">
+        <span class="pill-tag" style="background:#F0FDF4;border-color:var(--card-border);color:var(--primary);">
           {{ current_user.role_name | replace('_', ' ') | title }}
         </span>
 
-        {# Notification Bell #}
-        <div style="position:relative;">
-          <a href="#" title="Notifications" class="btn btn-outline btn-sm" style="padding:0.4375rem;border-radius:50%;width:34px;height:34px;">
+        {# Notification Bell with Unread Badge #}
+        <div style="position:relative;" id="notification-bell-container" x-data="{ unreadCount: 0 }">
+          <a href="/notifications" title="Notifications" class="btn btn-outline btn-sm" style="padding:0.4375rem;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;position:relative;">
             <i data-lucide="bell" style="width:16px;height:16px;"></i>
+            <span id="bell-unread-count" class="bell-badge" style="display:none;"></span>
           </a>
         </div>
 
@@ -152,7 +185,13 @@
     <div style="max-width:1100px;margin:1rem auto 0;padding:0 1.5rem;">
       {% for category, message in messages %}
         <div class="alert alert-{{ category }}">
-          <span>{{ message }}</span>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            {% if category == 'success' %}<i data-lucide="check-circle-2" style="width:16px;height:16px;"></i>
+            {% elif category == 'danger' %}<i data-lucide="alert-circle" style="width:16px;height:16px;"></i>
+            {% elif category == 'warning' %}<i data-lucide="alert-triangle" style="width:16px;height:16px;"></i>
+            {% else %}<i data-lucide="info" style="width:16px;height:16px;"></i>{% endif %}
+            <span>{{ message }}</span>
+          </div>
           <button onclick="this.closest('.alert').remove()" style="background:none;border:none;cursor:pointer;color:inherit;">
             <i data-lucide="x" style="width:14px;height:14px;"></i>
           </button>
@@ -162,7 +201,7 @@
   {% endif %}
 {% endwith %}
 
-<main>{% block public_content %}{% endblock %}</main>
+<main class="public-content-wrap">{% block public_content %}{% endblock %}</main>
 {% endif %}
 
 <script>

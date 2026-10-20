@@ -60,7 +60,7 @@
                 </td>
                 {% if p.flag_status is not none and p.flag_status %}
                 <td style="padding:.625rem .75rem;">
-                  <span class="badge {% if p.flag_status == 'HIGH' %}badge-red flag-high{% elif p.flag_status == 'LOW' %}badge-blue flag-low{% else %}badge-green{% endif %}">
+                  <span class="badge {% if p.flag_status == 'HIGH' %}badge-red flag-high{% elif p.flag_status == 'LOW' %}badge-amber flag-low{% else %}badge-green{% endif %}">
                     {{ p.flag_status }}
                   </span>
                 </td>

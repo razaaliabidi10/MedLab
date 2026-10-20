@@ -45,7 +45,7 @@
             <span style="color:var(--slate-500);">{{ b.appointment_slot }}</span>
           </td>
           <td>
-            {% set sc = {'Booked':'badge-blue','Sample_Collected':'badge-amber','In_Analysis':'badge-violet','Completed':'badge-green','Cancelled':'badge-red'} %}
+            {% set sc = {'Booked':'badge-green','Sample_Collected':'badge-amber','In_Analysis':'badge-slate','Completed':'badge-green','Cancelled':'badge-red'} %}
             <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
           </td>
           <td class="font-mono" style="font-size:.8125rem;">{{ b.invoice_number or '—' }}</td>

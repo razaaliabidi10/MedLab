@@ -128,7 +128,7 @@
 <div class="card mb-4">
   <div class="card-header">
     <div class="card-title">Lab Tests</div>
-    <span class="badge badge-blue">{{ tests | length }}</span>
+    <span class="badge badge-green">{{ tests | length }}</span>
   </div>
   <div class="table-wrap">
     <table>
@@ -159,7 +159,7 @@
 <div class="card">
   <div class="card-header">
     <div class="card-title">Biomarker Parameters</div>
-    <span class="badge badge-violet">{{ params | length }}</span>
+    <span class="badge badge-slate">{{ params | length }}</span>
   </div>
   <div class="table-wrap">
     <table>
@@ -172,8 +172,8 @@
           <td style="font-size:.8125rem;font-weight:500;">{{ p.test_name }}</td>
           <td>{{ p.param_name }}</td>
           <td class="font-mono" style="font-size:.8125rem;">{{ p.unit }}</td>
-          <td class="font-mono" style="font-size:.8125rem;color:var(--cobalt);">{{ p.min_range }}</td>
-          <td class="font-mono" style="font-size:.8125rem;color:var(--crimson);">{{ p.max_range }}</td>
+          <td class="font-mono" style="font-size:.8125rem;color:var(--slate-700);">{{ p.min_range }}</td>
+          <td class="font-mono" style="font-size:.8125rem;color:var(--flag-red);">{{ p.max_range }}</td>
           <td>{{ p.display_order }}</td>
         </tr>
         {% else %}

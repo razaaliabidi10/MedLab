@@ -59,7 +59,7 @@
                 {% endif %}
               </td>
               <td>
-                {% set ic = {'Pending_Sample':'badge-amber','Sample_Collected':'badge-blue','Report_Ready':'badge-green'} %}
+                {% set ic = {'Pending_Sample':'badge-amber','Sample_Collected':'badge-green','Report_Ready':'badge-green'} %}
                 <span class="badge {{ ic.get(item.item_status,'badge-slate') }}">{{ item.item_status | replace('_',' ') }}</span>
               </td>
               <td>

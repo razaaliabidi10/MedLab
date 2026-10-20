@@ -6,7 +6,7 @@
 {% block content %}
 {# ── KPI Cards ── #}
 <div class="kpi-grid mb-6">
-  <div class="kpi-card blue" style="animation-delay:.05s">
+  <div class="kpi-card green" style="animation-delay:.05s">
     <div class="kpi-label">Total Revenue</div>
     <div class="kpi-value font-mono">PKR {{ "{:,.0f}".format(kpis.total_revenue|float) }}</div>
     <div class="kpi-icon"><i data-lucide="trending-up" style="width:48px;height:48px;"></i></div>
@@ -21,7 +21,7 @@
     <div class="kpi-value">{{ kpis.pending_samples }}</div>
     <div class="kpi-icon"><i data-lucide="hourglass" style="width:48px;height:48px;"></i></div>
   </div>
-  <div class="kpi-card violet" style="animation-delay:.20s">
+  <div class="kpi-card slate" style="animation-delay:.20s">
     <div class="kpi-label">Active Staff</div>
     <div class="kpi-value">{{ kpis.active_staff }}</div>
     <div class="kpi-icon"><i data-lucide="users" style="width:48px;height:48px;"></i></div>
@@ -52,7 +52,7 @@
           <td>{{ b.full_name }}</td>
           <td>{{ b.appointment_date }}</td>
           <td>
-            {% set sc = {'Booked':'badge-blue','Sample_Collected':'badge-amber','In_Analysis':'badge-violet','Completed':'badge-green','Cancelled':'badge-red'} %}
+            {% set sc = {'Booked':'badge-green','Sample_Collected':'badge-amber','In_Analysis':'badge-slate','Completed':'badge-green','Cancelled':'badge-red'} %}
             <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
           </td>
           <td class="font-mono">{{ "{:,.0f}".format((b.total_amount or 0)|float) }}</td>

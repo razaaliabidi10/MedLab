@@ -2,8 +2,8 @@
 tests/test_phase2.py
 ====================
 Automated test suite verifying Phase 2 UI Redesign requirements:
-  1. Design System Tokens & Typography (Bricolage Grotesque, Instrument Sans, JetBrains Mono, #1F4FFF)
-  2. Base Layout & VeraLab Branding (authenticated shell, public nav, Lucide, Alpine.js)
+  1. Design System Tokens & Typography (Inter, JetBrains Mono, #166534)
+  2. Base Layout & MedLab Branding (authenticated shell, public nav, Lucide, Alpine.js)
   3. Editorial Landing Page (Hero, 3 stats, 01-04 workflow cards, packages, catalog, FAQ, phlebotomy)
   4. Authentication Interface (Login with Google button, show/hide toggle, pill button)
   5. Brute-Force Security (5-attempt increment, 10-minute lockout_until enforcement, reset on success)
@@ -41,41 +41,42 @@ class Phase2UITests(unittest.TestCase):
     # 1. DESIGN SYSTEM & TOKENS
     # -------------------------------------------------------------------------
     def test_01_design_system_css_tokens(self):
-        """Verify custom.css contains the clinical blue palette and mandatory fonts."""
+        """Verify custom.css contains the clinical dark green palette and mandatory fonts."""
         css_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "css", "custom.css")
         self.assertTrue(os.path.exists(css_path), "static/css/custom.css must exist.")
         
         with open(css_path, "r", encoding="utf-8") as f:
             css_content = f.read()
 
-        # Check required fonts (strictly no Inter as primary)
-        self.assertIn("Bricolage Grotesque", css_content, "CSS must import and configure Bricolage Grotesque.")
-        self.assertIn("Instrument Sans", css_content, "CSS must import and configure Instrument Sans.")
+        # Check required fonts (Inter and JetBrains Mono, strictly no Bricolage or Instrument Sans)
+        self.assertIn("Inter", css_content, "CSS must import and configure Inter.")
         self.assertIn("JetBrains Mono", css_content, "CSS must import and configure JetBrains Mono.")
+        self.assertNotIn("Bricolage Grotesque", css_content, "CSS must NOT contain Bricolage Grotesque.")
+        self.assertNotIn("Instrument Sans", css_content, "CSS must NOT contain Instrument Sans.")
 
         # Check curated color tokens
-        self.assertIn("--blue-primary: #1F4FFF;", css_content, "CSS must define --blue-primary: #1F4FFF.")
-        self.assertIn("--navy-ink:     #0B132B;", css_content, "CSS must define --navy-ink: #0B132B.")
-        self.assertIn("--bg-page:      #F4F7FF;", css_content, "CSS must define --bg-page: #F4F7FF.")
+        self.assertIn("#166534", css_content, "CSS must define dark green #166534.")
+        self.assertIn("#0F172A", css_content, "CSS must define slate text #0F172A.")
+        self.assertIn("#F6FAF7", css_content, "CSS must define page background #F6FAF7.")
 
         # Check UI components
         self.assertIn("--radius-pill", css_content, "CSS must define pill radius token.")
         self.assertIn(".btn", css_content, "CSS must define buttons.")
         self.assertIn(".pwd-rule", css_content, "CSS must define password policy checklist rules.")
         self.assertIn(".numbered-card", css_content, "CSS must define numbered cards.")
-        self.assertIn(".blue-feature-panel", css_content, "CSS must define blue feature panel.")
+        self.assertTrue(".green-feature-panel" in css_content or ".feature-panel" in css_content, "CSS must define feature panel.")
 
     # -------------------------------------------------------------------------
     # 2. BASE LAYOUT & BRANDING
     # -------------------------------------------------------------------------
     def test_02_base_layout_brand_and_scripts(self):
-        """Verify VeraLab brand, Lucide icons, and Alpine.js are present in public layout."""
+        """Verify MedLab brand, Lucide icons, and Alpine.js are present in public layout."""
         client = self.app.test_client()
         res = client.get("/")
         self.assertEqual(res.status_code, 200)
         html = res.data.decode("utf-8")
 
-        self.assertIn("VeraLab Diagnostics", html, "Page title or brand must mention VeraLab Diagnostics.")
+        self.assertIn("MedLab Diagnostics", html, "Page title or brand must mention MedLab Diagnostics.")
         self.assertIn("lucide.createIcons()", html, "Lucide icons must be initialized.")
         self.assertIn("alpinejs", html.lower(), "Alpine.js must be loaded in base layout.")
         self.assertIn("/login", html, "Navbar must link to /login.")
@@ -286,16 +287,16 @@ class Phase2UITests(unittest.TestCase):
     # 9. CUSTOM ERROR PAGES
     # -------------------------------------------------------------------------
     def test_12_custom_error_pages(self):
-        """Verify 403, 404, and 500 error pages render with clinical VeraLab styling."""
+        """Verify 403, 404, and 500 error pages render with clinical MedLab styling."""
         client = self.app.test_client()
 
         # 404 Not Found
-        res_404 = client.get("/this-route-does-not-exist-veralab-check")
+        res_404 = client.get("/this-route-does-not-exist-medlab-check")
         self.assertEqual(res_404.status_code, 404)
         html_404 = res_404.data.decode("utf-8")
         self.assertIn("HTTP 404", html_404)
         self.assertIn("Diagnostic Record Not Found", html_404)
-        self.assertIn("VeraLab Diagnostics", html_404)
+        self.assertIn("MedLab Diagnostics", html_404)
 
         # 403 Forbidden (test template rendering via test client context)
         with self.app.test_request_context():
@@ -311,7 +312,7 @@ class Phase2UITests(unittest.TestCase):
 
 def run_phase2_tests():
     print("\n" + "=" * 70)
-    print("  VERALAB DIAGNOSTICS — PHASE 2 UI REDESIGN VERIFICATION RUNNER")
+    print("  MEDLAB DIAGNOSTICS — VERIFICATION RUNNER")
     print("=" * 70)
     suite = unittest.TestSuite()
     loader = unittest.TestLoader()
@@ -320,9 +321,9 @@ def run_phase2_tests():
     result = runner.run(suite)
     print("=" * 70)
     if result.wasSuccessful():
-        print(f"  🎉 PHASE 2: ALL {result.testsRun} TESTS PASSED SUCCESSFULLY!")
+        print(f"  [PASS] ALL {result.testsRun} TESTS PASSED SUCCESSFULLY!")
     else:
-        print(f"  ❌ PHASE 2: {len(result.failures)} failures, {len(result.errors)} errors.")
+        print(f"  [FAIL] {len(result.failures)} failures, {len(result.errors)} errors.")
     print("=" * 70 + "\n")
     return result.wasSuccessful()
 
