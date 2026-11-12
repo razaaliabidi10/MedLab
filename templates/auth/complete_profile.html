@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Complete Registration — MedLab Diagnostics{% endblock %}
+
+{% block public_content %}
+<div class="min-h-screen flex flex-col items-center justify-center p-4" style="background:#0B3D2E;">
+  <div class="w-full max-w-md my-auto">
+    
+    {# Brand Header #}
+    <div class="text-center mb-6">
+      <a href="{{ url_for('auth.landing') }}" class="inline-flex items-center gap-2.5 text-white no-underline">
+        <div class="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center shadow-xs">
+          <i data-lucide="flask-conical" class="text-white w-5 h-5"></i>
+        </div>
+        <span class="font-display text-2xl font-bold tracking-tight text-white">MedLab</span>
+      </a>
+    </div>
+
+    {# Main White Card #}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl p-6 sm:p-8">
+      
+      <div class="mb-5">
+        <span class="text-2xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">Step 2 of 2</span>
+        <h1 class="text-xl font-bold text-slate-900 tracking-tight mt-2">Almost Done!</h1>
+        <p class="text-xs text-slate-500 mt-1">Google authenticated your identity. Please add your contact number for diagnostic appointment coordination.</p>
+      </div>
+
+      {# Verified Identity Badge #}
+      <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl mb-5 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+          {{ name[:1].upper() if name else 'P' }}
+        </div>
+        <div class="overflow-hidden">
+          <p class="text-xs font-bold text-slate-900 truncate">{{ name }}</p>
+          <p class="text-2xs text-slate-500 truncate font-mono">{{ email }}</p>
+        </div>
+      </div>
+
+      <form method="POST" action="{{ url_for('supabase_auth.complete_profile') }}">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group mb-5">
+          <label class="form-label" for="phone">Phone Number</label>
+          {{ form.phone(class="form-control h-10", id="phone", placeholder="+923001234567 or 03001234567", required=True) }}
+          {% if form.phone.errors %}
+            <div class="form-error text-xs text-red-600 mt-1">{{ form.phone.errors[0] }}</div>
+          {% endif %}
+          <p class="text-2xs text-slate-400 mt-1">Mandatory for home collection phlebotomists and urgent report notifications.</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full h-10 text-sm font-semibold justify-center">
+          Complete Registration & Continue
+        </button>
+      </form>
+
+      <div class="text-center mt-5 pt-4 border-t border-slate-100">
+        <a href="{{ url_for('auth.login') }}" class="text-xs text-slate-500 hover:text-slate-700 no-underline inline-flex items-center gap-1.5">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          <span>Cancel & Return to Sign In</span>
+        </a>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}

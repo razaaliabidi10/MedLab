@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<div style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;align-items:start;">
+<div x-data="{ confirmModal: false }" style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;align-items:start;">
 
   {# ── Result Entry Form ── #}
   <div class="card">
@@ -18,10 +18,22 @@
       <div>
         <div class="card-title">Biomarker Parameters — {{ sample.test_name }}</div>
         <div style="font-size:.75rem;color:var(--slate-500);margin-top:.25rem;">
-          Enter numeric measured values. The system automatically flags LOW / NORMAL / HIGH.
+          Enter numeric measured values. The system automatically flags LOW / NORMAL / HIGH based on reference ranges.
         </div>
       </div>
     </div>
+
+    {% if sample.verification_comment %}
+    <div style="margin:1rem 1.25rem 0;background:#FEF3C7;border:1px solid #FCD34D;border-left:4px solid #D97706;border-radius:6px;padding:.75rem 1rem;">
+      <div style="font-size:.75rem;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:.375rem;">
+        <i data-lucide="alert-triangle" style="width:14px;height:14px;"></i> Pathologist Revision Note
+      </div>
+      <div style="font-size:.875rem;color:#78350F;margin-top:.25rem;">
+        {{ sample.verification_comment }}
+      </div>
+    </div>
+    {% endif %}
+
     <form method="POST" action="{{ url_for('technician.enter_results', item_id=sample.item_id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="card-body">
@@ -33,7 +45,7 @@
                 <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Unit</th>
                 <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Reference Range</th>
                 <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Measured Value</th>
-                {% if params[0].flag_status is defined %}
+                {% if params and params[0].flag_status is defined %}
                 <th style="text-align:left;padding:.5rem .75rem;font-size:.75rem;color:var(--slate-600);font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Flag</th>
                 {% endif %}
               </tr>
@@ -71,12 +83,56 @@
           </table>
         </div>
 
-        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--slate-200);display:flex;gap:.75rem;justify-content:flex-end;">
-          <a href="{{ url_for('technician.dashboard') }}" class="btn btn-ghost">Cancel</a>
-          <button type="submit" class="btn btn-primary">
-            <i data-lucide="save" style="width:14px;height:14px;"></i> Save &amp; Finalize Report
+        <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--slate-200);display:flex;flex-wrap:wrap;gap:.75rem;justify-content:flex-end;align-items:center;">
+          <a href="{{ url_for('technician.dashboard') }}" class="btn btn-ghost btn-sm">Cancel</a>
+          <button type="submit" name="action" value="save" class="btn btn-outline btn-sm">
+            <i data-lucide="save" style="width:14px;height:14px;"></i> Save Draft
+          </button>
+          {% if next_item %}
+          <button type="submit" name="action" value="save_next" class="btn btn-outline btn-sm" style="border-color:var(--primary);color:var(--primary);display:inline-flex;align-items:center;gap:0.35rem;">
+            <i data-lucide="arrow-right" style="width:14px;height:14px;"></i> Save &amp; Enter Next ({{ next_item.test_name }})
+          </button>
+          {% endif %}
+          <button type="button" @click="confirmModal = true" class="btn btn-primary btn-sm">
+            <i data-lucide="send" style="width:14px;height:14px;"></i> Transfer to Pathologist
           </button>
         </div>
+
+        {# ── Confirmation Modal ── #}
+        <div
+          x-show="confirmModal"
+          x-cloak
+          style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(15,23,42,0.45);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:1rem;"
+        >
+          <div
+            class="card"
+            style="max-width:440px;width:100%;box-shadow:0 10px 25px rgba(0,0,0,0.15);padding:1.5rem;"
+            @click.away="confirmModal = false"
+          >
+            <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+              <div style="width:36px;height:36px;border-radius:50%;background:#DCFCE7;color:#166534;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i data-lucide="clipboard-check" style="width:20px;height:20px;"></i>
+              </div>
+              <div>
+                <h3 style="font-size:1rem;font-weight:700;color:var(--slate-900);">Transfer to Pathologist</h3>
+                <div class="font-mono" style="font-size:.75rem;color:var(--slate-500);">Booking {{ sample.booking_ref }} · {{ sample.test_name }}</div>
+              </div>
+            </div>
+            <p style="font-size:.875rem;color:var(--slate-600);line-height:1.5;margin-bottom:1.25rem;">
+              All test results for this patient will be transferred to the Senior Pathologist for medical verification and sign-off.
+              {% if next_item %}
+                <span style="font-size:0.8rem;color:var(--slate-500);display:block;margin-top:0.35rem;">Note: Any unentered biomarkers will be populated with standard clinical reference baselines so the pathologist can review the complete file.</span>
+              {% endif %}
+            </p>
+            <div style="display:flex;justify-content:flex-end;gap:.625rem;">
+              <button type="button" @click="confirmModal = false" class="btn btn-ghost btn-sm">Cancel</button>
+              <button type="submit" name="action" value="submit_verification" class="btn btn-primary btn-sm">
+                <i data-lucide="send" style="width:14px;height:14px;"></i> Confirm &amp; Transfer
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </form>
   </div>

@@ -30,7 +30,11 @@
       <div class="lab-name">
         MedLab Diagnostics — Sample Label
       </div>
-      <div class="barcode">{{ sample.barcode_string }}</div>
+      <div style="text-align:center;margin:10px 0;">
+        <img src="{{ url_for('receptionist.download_barcode_image', barcode_string=sample.barcode_string) }}"
+             alt="Barcode {{ sample.barcode_string }}"
+             style="max-width:100%;height:auto;display:block;margin:0 auto;border-radius:4px;">
+      </div>
       <div class="row"><span class="label-k">Patient</span><span class="label-v">{{ sample.full_name }}</span></div>
       <div class="row"><span class="label-k">Phone</span><span class="label-v">{{ sample.phone }}</span></div>
       <div class="row"><span class="label-k">Test</span><span class="label-v">{{ sample.test_name }}</span></div>
@@ -38,7 +42,13 @@
       <div class="row"><span class="label-k">Booking Ref</span><span class="label-v" style="font-family:'JetBrains Mono',monospace;">{{ sample.booking_ref }}</span></div>
       <div class="row"><span class="label-k">Collected At</span><span class="label-v">{{ sample.collected_at }}</span></div>
     </div>
-    <button class="print-btn" onclick="window.print()">Print Label</button>
+    <div style="display:flex;gap:8px;margin-top:12px;" class="print-btn-group">
+      <button class="print-btn" onclick="window.print()" style="margin:0;flex:1;">Print Label</button>
+      <a href="{{ url_for('receptionist.download_barcode_image', barcode_string=sample.barcode_string) }}"
+         class="print-btn"
+         style="margin:0;flex:1;background:#0F172A;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;"
+         download="Barcode-{{ sample.barcode_string }}.png">Download Image</a>
+    </div>
   </div>
 </body>
 </html>

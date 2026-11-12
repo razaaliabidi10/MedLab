@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Patient User Management{% endblock %}
+{% block page_title %}Patient User Management{% endblock %}
+{% block page_subtitle %}View, manage, and edit customer accounts and profiles{% endblock %}
+
+{% block content %}
+<script>
+window.USERS_DATA = {{ users_json | safe }};
+
+function usersManager() {
+  return {
+    usersData: window.USERS_DATA || {},
+    editModal: false,
+    deleteModal: false,
+    editUser: { id: null, name: '', email: '', phone: '', gender: '', blood_group: '', address: '', is_active: 1 },
+    deleteTarget: { id: null, name: '' },
+    openEdit(userId) {
+      const u = this.usersData[userId];
+      if (!u) return;
+      this.editUser = {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        gender: u.gender || '',
+        blood_group: u.blood_group || '',
+        address: u.address || '',
+        is_active: Number(u.is_active)
+      };
+      this.editModal = true;
+    },
+    openDelete(userId) {
+      const u = this.usersData[userId];
+      if (!u) return;
+      this.deleteTarget = { id: u.id, name: u.name };
+      this.deleteModal = true;
+    }
+  };
+}
+</script>
+
+<div x-data="usersManager()">
+
+  {# ── Summary Stats ── #}
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="card p-4">
+      <div class="text-xs uppercase font-bold text-slate-500 tracking-wider">Total Patients</div>
+      <div class="text-2xl font-bold text-slate-900 mt-1">{{ patient_list | length }}</div>
+      <div class="text-2xs text-slate-400 mt-0.5">Registered customer accounts</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs uppercase font-bold text-slate-500 tracking-wider">Active Customers</div>
+      <div class="text-2xl font-bold text-emerald-700 mt-1">
+        {{ patient_list | selectattr('is_active') | list | length }}
+      </div>
+      <div class="text-2xs text-slate-400 mt-0.5">Permitted to log in and book</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs uppercase font-bold text-slate-500 tracking-wider">Suspended Accounts</div>
+      <div class="text-2xl font-bold text-rose-600 mt-1">
+        {{ patient_list | rejectattr('is_active') | list | length }}
+      </div>
+      <div class="text-2xs text-slate-400 mt-0.5">Access temporarily restricted</div>
+    </div>
+  </div>
+
+  {# ── Patient Directory Card ── #}
+  <div class="card">
+    <div class="card-header flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="card-title">Registered Patients Directory</div>
+        <span class="badge badge-slate">{{ patient_list | length }} users</span>
+      </div>
+      <form method="GET" action="{{ url_for('admin.users') }}" class="flex items-center gap-2 w-full sm:w-auto">
+        <input type="text" name="q" value="{{ q or '' }}" placeholder="Search name, email, phone…"
+               class="form-control text-xs w-full sm:w-64" style="height:34px;">
+        <button type="submit" class="btn btn-primary btn-sm whitespace-nowrap" style="height:34px;">
+          <i data-lucide="search" style="width:13px;height:13px;"></i> Filter
+        </button>
+        {% if q %}
+          <a href="{{ url_for('admin.users') }}" class="btn btn-ghost btn-sm text-xs" style="height:34px;">Clear</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient Details</th>
+            <th>Contact &amp; Email</th>
+            <th>Demographics</th>
+            <th>Bookings</th>
+            <th>Total Paid</th>
+            <th>Joined</th>
+            <th>Status</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in patient_list %}
+          <tr>
+            <td>
+              <div class="flex items-center gap-2.5">
+                <div class="avatar" style="width:34px;height:34px;background:#DCFCE7;color:#166534;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">
+                  {{ p.full_name[:2].upper() }}
+                </div>
+                <div>
+                  <div style="font-weight:600;font-size:.875rem;color:var(--slate-900);">{{ p.full_name }}</div>
+                  <div class="font-mono text-2xs text-slate-400">ID: #{{ p.user_id }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div style="font-size:.8125rem;color:var(--slate-800);">{{ p.phone }}</div>
+              <div style="font-size:.75rem;color:var(--slate-500);">{{ p.email }}</div>
+            </td>
+            <td>
+              <div style="font-size:.8125rem;">
+                {{ p.gender or '—' }} {% if p.blood_group %}<span class="badge badge-slate text-2xs font-bold">{{ p.blood_group }}</span>{% endif %}
+              </div>
+              <div style="font-size:.75rem;color:var(--slate-400);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.address or '' }}">
+                {{ p.address or 'No address' }}
+              </div>
+            </td>
+            <td class="font-semibold text-xs">
+              <span class="badge badge-slate">{{ p.total_bookings }} booking{{ 's' if p.total_bookings != 1 else '' }}</span>
+            </td>
+            <td class="font-mono text-xs font-bold text-slate-900">
+              PKR {{ "{:,.0f}".format(p.total_spent|float) }}
+            </td>
+            <td class="text-xs text-slate-500">
+              {{ p.created_at.strftime('%d %b %Y') if p.created_at else '—' }}
+            </td>
+            <td>
+              {% if p.is_active %}
+                <span class="badge badge-green">Active</span>
+              {% else %}
+                <span class="badge badge-red">Suspended</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              <div class="flex items-center justify-end gap-1.5">
+                {# Edit #}
+                <button type="button" class="btn btn-outline btn-sm text-xs" style="height:28px;padding:0 0.5rem;"
+                        @click="openEdit({{ p.user_id }})">
+                  <i data-lucide="edit-3" style="width:12px;height:12px;"></i> Edit
+                </button>
+
+                {# Toggle Active / Suspend #}
+                <form method="POST" action="{{ url_for('admin.toggle_user', user_id=p.user_id) }}" style="display:inline;margin:0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm text-xs font-semibold"
+                          style="height:28px;padding:0 0.625rem;cursor:pointer;{% if p.is_active %}background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;{% else %}background:#ECFDF5;color:#059669;border:1px solid #A7F3D0;{% endif %}">
+                    {% if p.is_active %}Suspend{% else %}Activate{% endif %}
+                  </button>
+                </form>
+
+                {# Delete — opens confirmation modal #}
+                <button type="button" class="btn btn-sm text-xs" style="height:28px;padding:0 0.5rem;background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;cursor:pointer;"
+                        @click="openDelete({{ p.user_id }})">
+                  <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8">
+              <div class="empty-state py-8 text-center text-slate-400">
+                <i data-lucide="users" style="width:36px;height:36px;margin:0 auto 0.5rem;"></i>
+                <div class="font-semibold text-slate-600">No patient users found</div>
+                <div class="text-xs text-slate-400">Try adjusting your search criteria</div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Modal: Edit Patient User ── #}
+  <div x-show="editModal" x-cloak class="modal-overlay" @click.self="editModal = false">
+    <div class="modal-box" @click.stop style="max-width:520px;">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Edit Patient Profile &amp; Credentials</div>
+          <div style="font-size:.75rem;color:var(--slate-500);margin-top:.125rem;" x-text="'Updating patient #' + editUser.id"></div>
+        </div>
+        <button type="button" @click="editModal = false" style="background:none;border:none;cursor:pointer;color:var(--slate-400);">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <form method="POST" :action="'/admin/users/edit/' + editUser.id">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body space-y-3">
+          <div class="form-group">
+            <label class="form-label">Full Name / Customer Name *</label>
+            <input type="text" name="full_name" x-model="editUser.name" required class="form-control text-xs">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="form-group">
+              <label class="form-label">Email Address *</label>
+              <input type="email" name="email" x-model="editUser.email" required class="form-control text-xs">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number *</label>
+              <input type="text" name="phone" x-model="editUser.phone" required class="form-control text-xs">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="form-group">
+              <label class="form-label">Gender</label>
+              <select name="gender" x-model="editUser.gender" class="form-control text-xs">
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Blood Group</label>
+              <select name="blood_group" x-model="editUser.blood_group" class="form-control text-xs">
+                <option value="">Select Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Residential Address</label>
+            <input type="text" name="address" x-model="editUser.address" placeholder="Address, City" class="form-control text-xs">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Account Status</label>
+            <select name="is_active" x-model.number="editUser.is_active" class="form-control text-xs">
+              <option :value="1">Active (Permitted to log in &amp; book tests)</option>
+              <option :value="0">Suspended (Account locked / cannot log in)</option>
+            </select>
+          </div>
+          <div class="form-group pt-2 border-t border-slate-100">
+            <label class="form-label">Reset Password <span class="text-slate-400 font-normal">(Leave blank to keep current)</span></label>
+            <input type="password" name="new_password" placeholder="Enter new password to reset" class="form-control text-xs" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" @click="editModal = false">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="check" style="width:14px;height:14px;"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modal: Delete Confirmation ── #}
+  <div x-show="deleteModal" x-cloak class="modal-overlay" @click.self="deleteModal = false">
+    <div class="modal-box" @click.stop style="max-width:420px;">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" style="color:#DC2626;">
+            <i data-lucide="alert-triangle" style="width:16px;height:16px;display:inline;vertical-align:-2px;"></i>
+            Delete Patient Account
+          </div>
+        </div>
+        <button type="button" @click="deleteModal = false" style="background:none;border:none;cursor:pointer;color:var(--slate-400);">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.875rem;color:var(--slate-700);line-height:1.6;">
+          You are about to <strong>permanently delete</strong> the account for
+          <strong x-text="deleteTarget.name"></strong>.
+        </p>
+        <div style="margin-top:0.75rem;padding:0.75rem;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;font-size:0.8125rem;color:#DC2626;line-height:1.5;">
+          ⚠️ This will delete all their bookings, invoices, lab results, and profile data. <strong>This action cannot be undone.</strong>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" @click="deleteModal = false">Cancel</button>
+        <form method="POST" :action="'/admin/users/delete/' + deleteTarget.id" style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger" style="background:#DC2626;border-color:#DC2626;color:#fff;">
+            <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Yes, Delete Permanently
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>[x-cloak]{display:none!important;}</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('alpine:initialized', () => { if (window.lucide) lucide.createIcons(); });
+</script>
+{% endblock %}

@@ -1,17 +1,25 @@
 import os
+import sys
 # pyrefly: ignore[missing-import]
 import mysql.connector
 # pyrefly: ignore[missing-import]
 from werkzeug.security import generate_password_hash
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # ============================================================================
-# PUT YOUR MYSQL ROOT PASSWORD BELOW (Leave "" if you have no password)
+# DATABASE CONFIGURATION READ FROM ENVIRONMENT / .ENV
+# Never hardcode sensitive root or database passwords in source control.
 # ============================================================================
-DB_HOST = "127.0.0.1"
-DB_PORT = 3306
-DB_USER = "root"
-DB_PASSWORD = "Razaali@8521"
-DB_NAME = "medlab_db"
+DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
+DB_PORT = int(os.environ.get("DB_PORT", 3306))
+DB_USER = os.environ.get("DB_USER", "root")
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
+DB_NAME = os.environ.get("DB_NAME", "medlab_db")
 
 DDL_STATEMENTS = [
     f"DROP DATABASE IF EXISTS {DB_NAME}",
@@ -340,6 +348,24 @@ DDL_STATEMENTS = [
 
 
 def run_setup():
+  print("=" * 70)
+  print("⚠️  CRITICAL SAFETY GUARD: DESTRUCTIVE ACTION DETECTED")
+  print(f"This script will DROP and RECREATE the database: '{DB_NAME}'")
+  print("ALL EXISTING PATIENT RECORDS, BOOKINGS, RESULTS, AND AUDITS WILL BE WIPED.")
+  print("=" * 70)
+
+  # Check for explicit environment authorization
+  allow_reset = os.environ.get("ALLOW_DB_RESET", "").strip().upper()
+  if allow_reset != "YES":
+    try:
+      confirm = input(f"To proceed, please type the database name exactly ('{DB_NAME}'): ").strip()
+      if confirm != DB_NAME:
+        print("❌ Aborted: Confirmation did not match database name. Database was NOT modified.")
+        sys.exit(1)
+    except (KeyboardInterrupt, EOFError):
+      print("\n❌ Operation aborted by user. Database was NOT modified.")
+      sys.exit(1)
+
   try:
     conn = mysql.connector.connect(
         host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD

@@ -1,619 +1,1196 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedLab Diagnostics — Pathologist-Verified Clinical Laboratory</title>
+  <meta name="description" content="Precision clinical laboratory diagnostics with seamless digital booking and pathologist-verified reports.">
 
-{% block title %}MedLab Diagnostics — Precision Clinical Laboratory{% endblock %}
-{% block meta_desc %}MedLab Diagnostics provides clinical-grade laboratory testing, certified phlebotomy home visits, and pathologist-verified digital reports.{% endblock %}
+  {# Google Fonts: Inter for text and JetBrains Mono for numbers, codes, and prices #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-{% block public_content %}
-{# ── Sticky Minimal Public Navbar ── #}
-<nav class="public-navbar">
-  <div style="display:flex;align-items:center;gap:0.75rem;">
-    <div style="width:34px;height:34px;border-radius:8px;background:var(--primary);display:grid;place-items:center;">
-      <i data-lucide="flask-conical" style="color:#FFFFFF;width:18px;height:18px;"></i>
-    </div>
-    <div>
-      <span style="font-family:var(--font-display);font-size:1.125rem;font-weight:700;color:var(--navy-ink);letter-spacing:-0.02em;">MedLab</span>
-      <span style="font-size:0.6875rem;color:var(--primary);font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-left:0.25rem;">Diagnostics</span>
-    </div>
-  </div>
+  {# Tailwind CSS CDN configured with curated dark green palette #}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            hero: '#0B3D2E',
+            footer: '#07271D',
+            primary: {
+              DEFAULT: '#166534',
+              hover: '#14532D',
+              light: '#DCFCE7',
+              tint: '#F0FDF4',
+            },
+            page: '#F6FAF7',
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
 
-  <div class="public-nav-links">
-    <a href="#process">How It Works</a>
-    <a href="#catalog">Test Catalog</a>
-    <a href="#packages">Health Packages</a>
-    <a href="#home-collection">Home Phlebotomy</a>
-    <a href="#why-us">Why MedLab</a>
-    <a href="#faq">FAQ</a>
-  </div>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+  <style>
+    [x-cloak] { display: none !important; }
+  </style>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F6FAF7] font-sans text-slate-900 antialiased selection:bg-emerald-100 selection:text-emerald-900 overflow-x-hidden"
+      x-data="{
+        mobileMenu: false,
+        catalogOpen: false,
+        activeCat: null,
+        authModal: (new URLSearchParams(window.location.search).get('auth') === 'login' ? 'login' : (new URLSearchParams(window.location.search).get('auth') === 'signup' ? 'signup' : (window.location.hash === '#login' ? 'login' : (window.location.hash === '#signup' ? 'signup' : null)))),
+        modalLoginEmail: '',
+        modalLoginPassword: '',
+        modalLoginError: '',
+        modalLoginLoading: false,
+        modalSignupName: '',
+        modalSignupPhone: '',
+        modalSignupEmail: '',
+        modalSignupPassword: '',
+        modalSignupConfirm: '',
+        modalSignupError: '',
+        modalSignupLoading: false,
+        openAuth(mode) {
+          this.authModal = mode;
+          this.modalLoginError = '';
+          this.modalSignupError = '';
+        },
+        closeAuth() {
+          this.authModal = null;
+          this.modalLoginError = '';
+          this.modalSignupError = '';
+          if (window.location.search.includes('auth=')) {
+            const cleanUrl = window.location.pathname + window.location.search.replace(/[?&]auth=[^&]+/, '').replace(/^&/, '?');
+            window.history.replaceState({}, '', cleanUrl || window.location.pathname);
+          }
+        },
+        async submitModalLogin() {
+          this.modalLoginLoading = true;
+          this.modalLoginError = '';
+          try {
+            const formData = new FormData();
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            formData.append('email', this.modalLoginEmail);
+            formData.append('password', this.modalLoginPassword);
+            formData.append('is_modal', '1');
 
-  <div style="display:flex;align-items:center;gap:0.75rem;">
-    <a href="{{ url_for('auth.login') }}" class="btn btn-ghost btn-sm">Sign In</a>
-    <a href="{{ url_for('auth.signup') }}" class="btn btn-primary btn-sm">
-      Book a Test <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
-    </a>
-  </div>
-</nav>
+            const res = await fetch('{{ url_for('auth.login') }}', {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token() }}'
+              },
+              body: formData
+            });
+            const data = await res.json();
+            if (data.success && data.redirect_url) {
+              window.location.href = data.redirect_url;
+            } else {
+              this.modalLoginError = data.error || 'Invalid email or password.';
+            }
+          } catch (e) {
+            this.modalLoginError = 'Login failed. Please check your network and try again.';
+          } finally {
+            this.modalLoginLoading = false;
+          }
+        },
+        async submitModalSignup() {
+          if (this.modalSignupPassword !== this.modalSignupConfirm) {
+            this.modalSignupError = 'Passwords do not match.';
+            return;
+          }
+          this.modalSignupLoading = true;
+          this.modalSignupError = '';
+          try {
+            const formData = new FormData();
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            formData.append('full_name', this.modalSignupName);
+            formData.append('phone', this.modalSignupPhone);
+            formData.append('email', this.modalSignupEmail);
+            formData.append('password', this.modalSignupPassword);
+            formData.append('confirm_password', this.modalSignupConfirm);
+            formData.append('is_modal', '1');
 
-{# ── Hero Section with Swiss-grid Aesthetic ── #}
-<section style="padding:4.5rem 5vw 3.5rem;background:var(--bg-page);border-bottom:1px solid var(--card-border);">
-  <div style="max-width:1160px;margin:0 auto;">
-    <div style="margin-bottom:1.25rem;">
-      <span class="pill-tag">
-        <i data-lucide="shield-check" style="width:12px;height:12px;"></i>
-        ISO-15189 Certified Reference Laboratory
-      </span>
-    </div>
+            const res = await fetch('{{ url_for('auth.signup') }}', {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token() }}'
+              },
+              body: formData
+            });
+            const data = await res.json();
+            if (data.success && data.redirect_url) {
+              window.location.href = data.redirect_url;
+            } else {
+              this.modalSignupError = data.error || 'Registration failed. Please check all fields.';
+            }
+          } catch (e) {
+            this.modalSignupError = 'Registration failed. Please check your network and try again.';
+          } finally {
+            this.modalSignupLoading = false;
+          }
+        },
+        openCatalog() {
+          this.catalogOpen = true;
+          this.$nextTick(() => {
+            const el = document.getElementById('browse-tests');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          });
+        }
+      }"
+      x-init="(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (window.location.hash === '#browse-tests' || params.get('browse') === 'tests') {
+          catalogOpen = true;
+        }
+      })()"
+      @keydown.escape.window="mobileMenu = false; closeAuth()">
 
-    <h1 style="font-size:clamp(2.5rem, 5vw, 4rem);font-weight:800;line-height:1.05;letter-spacing:-0.03em;color:var(--navy-ink);max-width:960px;margin-bottom:1.25rem;">
-      Precision Diagnostics For Proactive Health.
-    </h1>
-
-    <p style="font-size:1.125rem;color:var(--navy-muted);max-width:620px;line-height:1.6;margin-bottom:2rem;">
-      Experience medical testing without the friction. Direct online booking, certified home sample collection, and senior pathologist-verified reports in your portal.
-    </p>
-
-    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:3.5rem;">
-      <a href="{{ url_for('auth.signup') }}" class="btn btn-primary btn-lg">
-        <i data-lucide="calendar-plus" style="width:18px;height:18px;"></i>
-        Book a Diagnostic Test
-      </a>
-      <a href="#packages" class="btn btn-outline btn-lg">
-        View Health Packages
-      </a>
-    </div>
-
-    {# ── 3 Big Numeric Stats ── #}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:2rem;padding-top:2rem;border-top:1px solid var(--card-border);">
-      <div>
-        <div class="big-stat-number">{{ stats.accuracy_rate }}</div>
-        <div class="big-stat-label">Clinical Diagnostic Reliability Rate</div>
-      </div>
-      <div>
-        <div class="big-stat-number">{{ stats.turnaround_avg }}</div>
-        <div class="big-stat-label">Routine Result Turnaround Time</div>
-      </div>
-      <div>
-        <div class="big-stat-number">{{ stats.verified_reports }}</div>
-        <div class="big-stat-label">Pathologist-Approved Patient Reports</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-{# ── How It Works (Numbered Cards 01-04) ── #}
-<section id="process" style="padding:4.5rem 5vw;background:#FFFFFF;border-bottom:1px solid var(--card-border);">
-  <div style="max-width:1160px;margin:0 auto;">
-    <div style="margin-bottom:2.5rem;">
-      <span class="pill-tag" style="margin-bottom:0.75rem;">Step-by-Step Workflow</span>
-      <h2 style="font-size:clamp(1.875rem, 3vw, 2.5rem);letter-spacing:-0.025em;">Your Diagnostic Journey in 4 Steps</h2>
-      <p style="font-size:0.9375rem;color:var(--navy-muted);margin-top:0.5rem;max-width:540px;">
-        Transparent, tracked, and medically validated at every transition point.
-      </p>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:1.5rem;">
-      {# Card 01 #}
-      <div class="numbered-card">
-        <div class="card-number">01</div>
-        <h3 style="font-size:1.125rem;margin-bottom:0.5rem;">Book Online</h3>
-        <p style="font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          Select your prescribed test or wellness package, choose a capacity-guaranteed time slot, and specify lab visit or home collection.
-        </p>
-      </div>
-
-      {# Card 02 #}
-      <div class="numbered-card">
-        <div class="card-number">02</div>
-        <h3 style="font-size:1.125rem;margin-bottom:0.5rem;">Sample Collection</h3>
-        <p style="font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          Certified phlebotomists collect vacuum tube specimens using barcoded labels generated at bedside for zero sample confusion.
-        </p>
-      </div>
-
-      {# Card 03 #}
-      <div class="numbered-card">
-        <div class="card-number">03</div>
-        <h3 style="font-size:1.125rem;margin-bottom:0.5rem;">Laboratory Testing</h3>
-        <p style="font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          Analyzers measure biological parameters while database triggers instantly cross-examine against age and gender reference limits.
-        </p>
-      </div>
-
-      {# Card 04 #}
-      <div class="numbered-card">
-        <div class="card-number">04</div>
-        <h3 style="font-size:1.125rem;margin-bottom:0.5rem;">Verified Report</h3>
-        <p style="font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          A senior pathologist reviews flag deviations and signs off, immediately releasing a tamper-evident digital report to your portal.
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
-
-{# ── Browse Our Tests Section (Collapsed by Default) ── #}
-<section id="catalog" style="padding:4.5rem 5vw;background:var(--bg-page);border-bottom:1px solid var(--card-border);" x-data="{ open: false, activeCat: null }">
-  <div style="max-width:1160px;margin:0 auto;">
-    
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1.5rem;margin-bottom:2rem;">
-      <div>
-        <span class="pill-tag" style="margin-bottom:0.75rem;">Live Test Directory</span>
-        <h2 style="font-size:clamp(1.875rem, 3vw, 2.5rem);letter-spacing:-0.025em;color:var(--navy-ink);">Browse our tests</h2>
-        <p style="font-size:0.9375rem;color:var(--navy-muted);margin-top:0.5rem;">
-          {{ tests | length }} accredited diagnostic investigations organized across {{ categories | length }} specialized medical departments.
-        </p>
-      </div>
+  {# ── Sticky Dark Green Header ── #}
+  <header class="w-full sticky top-0 z-50 bg-[#0B3D2E] border-b border-emerald-900/40 text-white backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
       
-      <div style="display:flex;align-items:center;gap:0.75rem;">
-        <button type="button" @click="open = !open" class="btn" :class="open ? 'btn-outline' : 'btn-primary'"
-                style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.25rem;cursor:pointer;">
-          <i data-lucide="layers" style="width:16px;height:16px;"></i>
-          <span x-text="open ? 'Collapse Test Directory' : 'Explore All Categories ({{ categories | length }})'"></span>
-          <i data-lucide="chevron-down" style="width:16px;height:16px;transition:transform 0.2s;" :style="open ? 'transform:rotate(180deg);' : ''"></i>
+      {# Brand Logo #}
+      <a href="{{ url_for('auth.landing') }}" class="flex items-center gap-3 no-underline group focus:outline-none focus:ring-2 focus:ring-emerald-400 rounded-lg p-1">
+        <div class="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500/30 transition-colors">
+          <i data-lucide="flask-conical" class="w-5 h-5 text-emerald-400"></i>
+        </div>
+        <span class="text-xl font-bold tracking-tight text-white font-display">MedLab</span>
+      </a>
+
+      {# Desktop Navigation Links (EXACTLY 3 Links) #}
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-emerald-100/80">
+        <a href="#how-it-works" class="hover:text-emerald-300 transition-colors no-underline py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded">How It Works</a>
+        <a href="#why-medlab" class="hover:text-emerald-300 transition-colors no-underline py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded">Why MedLab</a>
+        <a href="#faq" class="hover:text-emerald-300 transition-colors no-underline py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded">Frequently Asked Questions</a>
+      </nav>
+
+      {# Right Actions: Log In and Sign Up always visible #}
+      <div class="hidden md:flex items-center gap-3">
+        {% if current_user.is_authenticated %}
+          {% set dash_url = url_for('patient.dashboard') %}
+          {% if current_user.role_id == 1 %}{% set dash_url = url_for('admin.dashboard') %}
+          {% elif current_user.role_id == 2 %}{% set dash_url = url_for('receptionist.dashboard') %}
+          {% elif current_user.role_id == 3 %}{% set dash_url = url_for('technician.dashboard') %}
+          {% elif current_user.role_id == 6 %}{% set dash_url = url_for('pathologist.dashboard') %}
+          {% endif %}
+          <a href="{{ dash_url }}" class="text-sm font-medium text-emerald-200 hover:text-white transition-colors px-3 py-2 no-underline flex items-center gap-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded-lg">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 text-emerald-400"></i>
+            Dashboard
+          </a>
+        {% endif %}
+        <button type="button" @click="openAuth('login')" class="text-sm font-medium text-emerald-100 hover:text-white transition-colors px-3 py-2 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-400 rounded-lg">Log In</button>
+        <button type="button" @click="openAuth('signup')" class="text-sm font-semibold bg-white text-[#063122] hover:bg-emerald-50 px-4 py-2 rounded-lg transition-colors shadow-sm border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white">Sign Up</button>
+      </div>
+
+      {# Mobile Hamburger #}
+      <div class="md:hidden flex items-center">
+        <button type="button" @click="mobileMenu = !mobileMenu" aria-label="Toggle navigation menu" class="p-2 rounded-lg text-emerald-100 hover:text-white hover:bg-emerald-900/60 transition-colors border-0 bg-transparent cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400">
+          <i data-lucide="menu" class="w-6 h-6" x-show="!mobileMenu"></i>
+          <i data-lucide="x" class="w-6 h-6" x-show="mobileMenu" x-cloak></i>
         </button>
       </div>
     </div>
 
-    {# Collapsible Categories Container #}
-    <div x-show="open" x-cloak style="transition:all 0.3s ease;">
+    {# Mobile Drawer #}
+    <div x-show="mobileMenu" x-cloak class="md:hidden border-t border-emerald-900/50 bg-[#0B3D2E] px-6 py-5 space-y-4 shadow-xl">
+      <a href="#how-it-works" @click="mobileMenu = false" class="block text-sm font-medium text-emerald-100 hover:text-white py-1.5 no-underline">How It Works</a>
+      <a href="#why-medlab" @click="mobileMenu = false" class="block text-sm font-medium text-emerald-100 hover:text-white py-1.5 no-underline">Why MedLab</a>
+      <a href="#faq" @click="mobileMenu = false" class="block text-sm font-medium text-emerald-100 hover:text-white py-1.5 no-underline">Frequently Asked Questions</a>
       
-      <div style="background:#FFFFFF;border:1px solid var(--card-border);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-          <div>
-            <div style="font-weight:700;font-size:1rem;color:var(--navy-ink);">Specialized Diagnostic Departments</div>
-            <div style="font-size:0.8125rem;color:var(--navy-muted);">Click any department below to view available tests, specimen requirements, and transparent pricing. Only one category is expanded at a time.</div>
-          </div>
-          <span class="badge badge-green font-mono" style="font-size:0.75rem;">
-            {{ tests | length }} Total Active Tests
-          </span>
+      <div class="pt-4 border-t border-emerald-900/50 flex flex-col gap-2.5">
+        {% if current_user.is_authenticated %}
+          {% set dash_url = url_for('patient.dashboard') %}
+          {% if current_user.role_id == 1 %}{% set dash_url = url_for('admin.dashboard') %}
+          {% elif current_user.role_id == 2 %}{% set dash_url = url_for('receptionist.dashboard') %}
+          {% elif current_user.role_id == 3 %}{% set dash_url = url_for('technician.dashboard') %}
+          {% elif current_user.role_id == 6 %}{% set dash_url = url_for('pathologist.dashboard') %}
+          {% endif %}
+          <a href="{{ dash_url }}" @click="mobileMenu = false" class="w-full text-center text-sm font-semibold bg-emerald-800 text-white py-2 rounded-lg shadow-sm no-underline flex items-center justify-center gap-2">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 text-emerald-300"></i>
+            Go to Dashboard
+          </a>
+        {% endif %}
+        <div class="flex items-center gap-3">
+          <button type="button" @click="mobileMenu = false; openAuth('login')" class="w-1/2 text-center text-sm font-medium text-emerald-100 hover:text-white py-2 border border-emerald-500/30 rounded-lg bg-transparent cursor-pointer focus:outline-none">Log In</button>
+          <button type="button" @click="mobileMenu = false; openAuth('signup')" class="w-1/2 text-center text-sm font-semibold bg-white text-[#063122] py-2 rounded-lg shadow-sm border-0 cursor-pointer focus:outline-none">Sign Up</button>
         </div>
       </div>
+    </div>
+  </header>
 
-      {# Numbered Categories Accordion List #}
-      <div style="display:flex;flex-direction:column;gap:0.75rem;">
-        {% for cat in categories %}
-        <div class="card" style="border:1px solid var(--card-border);background:#FFFFFF;overflow:hidden;transition:border-color 0.2s, box-shadow 0.2s;"
-             :style="activeCat === {{ loop.index }} ? 'border-color:var(--primary);box-shadow:0 4px 12px rgba(22,101,52,0.08);' : ''"
-             x-data="{
-               search: '',
-               tests: [
-                 {% for t in cat.tests %}
-                 {
-                   id: {{ t.test_id }},
-                   code: {{ t.test_code | tojson }},
-                   name: {{ t.test_name | tojson }},
-                   sample: {{ (t.sample_type or 'Serum') | tojson }},
-                   price: '{{ '{:,.0f}'.format(t.price) }}',
-                   turnaround: '{{ t.turnaround_hours }}h',
-                   instructions: {{ (t.pre_test_instructions or '') | tojson }}
-                 }{{ ',' if not loop.last else '' }}
-                 {% endfor %}
-               ],
-               get filteredTests() {
-                 if (!this.search.trim()) return this.tests;
-                 const q = this.search.toLowerCase().trim();
-                 return this.tests.filter(t => t.name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q) || t.sample.toLowerCase().includes(q));
-               }
-             }">
+  {# ── Hero Section (Google AI Studio Design) ── #}
+  <section class="relative bg-[#063122] text-white overflow-hidden min-h-[720px] lg:min-h-[820px] xl:min-h-[860px] flex flex-col justify-between pt-8 pb-16 md:pt-14 md:pb-24">
+    
+    {# Background Medical Dot Grid Pattern #}
+    <div class="absolute inset-0 medical-grid-bg opacity-30 pointer-events-none"></div>
 
-          {# Category Header Row #}
-          <button type="button" @click="activeCat = (activeCat === {{ loop.index }} ? null : {{ loop.index }})"
-                  style="width:100%;padding:1.125rem 1.5rem;display:flex;align-items:center;justify-content:space-between;background:none;border:none;cursor:pointer;text-align:left;">
-            <div style="display:flex;align-items:center;gap:1rem;">
-              <div style="width:34px;height:34px;border-radius:8px;background:var(--primary-light);color:var(--primary);font-family:var(--font-mono);font-weight:700;font-size:0.875rem;display:grid;place-items:center;flex-shrink:0;">
-                {{ "%02d" % loop.index }}
-              </div>
-              <div>
-                <div style="font-weight:700;font-size:1.0625rem;color:var(--navy-ink);letter-spacing:-0.01em;">
-                  {{ loop.index }}. {{ cat.category_name }}
-                </div>
-                <div style="font-size:0.75rem;color:var(--navy-muted);margin-top:0.125rem;display:flex;align-items:center;gap:0.5rem;">
-                  <span>{{ cat.tests | length }} test{{ 's' if (cat.tests | length) != 1 else '' }}</span>
-                  {% if cat.department_code %}
-                    <span>•</span>
-                    <span class="font-mono" style="font-weight:600;color:var(--navy-subtle);">Dept: {{ cat.department_code }}</span>
-                  {% endif %}
-                </div>
+    {# Ambient Lighting Accents #}
+    <div class="absolute top-1/4 left-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-emerald-400/15 rounded-full blur-[130px] pointer-events-none"></div>
+
+    {# Concentric Telemetry Rings Behind Doctor (Desktop Only) #}
+    <div class="hidden lg:flex absolute right-8 bottom-12 w-[620px] h-[620px] items-center justify-center pointer-events-none z-0">
+      <div class="w-[580px] h-[580px] rounded-full border border-emerald-500/20" style="animation: spin 120s linear infinite;"></div>
+      <div class="absolute w-[440px] h-[440px] rounded-full border border-dashed border-emerald-400/25"></div>
+      <div class="absolute w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl"></div>
+    </div>
+
+    {# Main Content #}
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full z-10 flex-1 flex flex-col justify-center">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+
+        {# Left Column: Headline, Subheading, CTAs, Stats #}
+        <div class="lg:col-span-7 space-y-6 sm:space-y-7 pt-2 pb-6 lg:py-8 max-w-2xl">
+
+          {# Badge #}
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-xs font-semibold tracking-wider uppercase">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Clinical-Grade Testing</span>
+          </div>
+
+          {# Main Headline #}
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.12]">
+            Precision <span class="text-emerald-400">Diagnostics</span><br>For Proactive Health
+          </h1>
+
+          {# Subheading #}
+          <p class="text-lg sm:text-xl text-emerald-100/90 leading-relaxed font-normal">
+            Book certified lab tests using home sample collection. Get pathologist-verified reports in your secure patient portal.
+          </p>
+
+          {# CTA Buttons #}
+          <div class="flex flex-wrap items-center gap-4 pt-2">
+            {% if current_user.is_authenticated %}
+              {% set dash_url = url_for('patient.dashboard') %}
+              {% if current_user.role_id == 1 %}{% set dash_url = url_for('admin.dashboard') %}
+              {% elif current_user.role_id == 2 %}{% set dash_url = url_for('receptionist.dashboard') %}
+              {% elif current_user.role_id == 3 %}{% set dash_url = url_for('technician.dashboard') %}
+              {% elif current_user.role_id == 5 %}{% set dash_url = url_for('collector.dashboard') %}
+              {% elif current_user.role_id == 6 %}{% set dash_url = url_for('pathologist.dashboard') %}
+              {% endif %}
+              <a href="{{ dash_url }}" class="px-8 py-3.5 text-base font-semibold text-[#063122] bg-white hover:bg-emerald-50 active:bg-slate-100 rounded-full transition-all duration-200 shadow-lg shadow-black/20 hover:shadow-xl no-underline flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                Go to Dashboard
+              </a>
+            {% else %}
+              <button type="button" @click="openAuth('signup')" class="px-8 py-3.5 text-base font-semibold text-[#063122] bg-white hover:bg-emerald-50 active:bg-slate-100 rounded-full transition-all duration-200 shadow-lg shadow-black/20 hover:shadow-xl cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                Sign Up
+              </button>
+              <button type="button" @click="openAuth('login')" class="px-7 py-3.5 text-base font-medium text-emerald-100 hover:text-white bg-emerald-900/40 hover:bg-emerald-900/70 border border-emerald-700/50 rounded-full transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                Log In
+              </button>
+            {% endif %}
+          </div>
+
+          {# Browse Tests Link #}
+          <div>
+            <button type="button" @click="openCatalog()" class="inline-flex items-center gap-2 text-sm font-medium text-emerald-300 hover:text-emerald-200 transition-colors group cursor-pointer bg-transparent border-0 p-0 pt-1 focus:outline-none">
+              <i data-lucide="search" class="w-4 h-4 text-emerald-400"></i>
+              <span class="border-b border-transparent group-hover:border-emerald-300">Browse our tests</span>
+              <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          {# Proof Stats Strip #}
+          <div class="pt-8 border-t border-emerald-800/60 grid grid-cols-3 gap-4 sm:gap-8">
+            <div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight tabular-nums">99.8%</div>
+              <div class="text-xs sm:text-sm text-emerald-200/70 mt-1">Diagnostic Accuracy</div>
+            </div>
+            <div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight tabular-nums">12-24h</div>
+              <div class="text-xs sm:text-sm text-emerald-200/70 mt-1">Routine Turnaround</div>
+            </div>
+            <div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight tabular-nums">15k+</div>
+              <div class="text-xs sm:text-sm text-emerald-200/70 mt-1">Verified Reports</div>
+            </div>
+          </div>
+
+        </div>
+
+        {# Mobile Doctor Image (shown below text on small screens) #}
+        <div class="lg:hidden relative flex flex-col items-center justify-end mt-8">
+          <div class="relative max-w-[420px] sm:max-w-[480px]">
+            <img
+              src="{{ url_for('static', filename='img/doctor_hero.png') }}"
+              alt="MedLab Pathologist"
+              class="w-full h-auto max-h-[560px] sm:max-h-[620px] object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.55)] doctor-bottom-fade"
+            />
+          </div>
+        </div>
+
+        {# Desktop grid spacer — doctor is absolutely positioned #}
+        <div class="hidden lg:block lg:col-span-5 h-full pointer-events-none"></div>
+
+      </div>
+    </div>
+
+    {# Desktop Doctor: Big, three-quarter body, fixed to bottom-right #}
+    <div class="hidden lg:flex absolute right-0 bottom-0 z-10 pointer-events-none items-end justify-end pr-2 xl:pr-8 2xl:pr-14">
+      <img
+        src="{{ url_for('static', filename='img/doctor_hero.png') }}"
+        alt="MedLab Pathologist"
+        class="h-[740px] xl:h-[820px] 2xl:h-[880px] w-auto max-w-[620px] xl:max-w-[700px] 2xl:max-w-[760px] object-contain object-bottom select-none drop-shadow-[0_30px_60px_rgba(0,0,0,0.7)] doctor-bottom-fade"
+      />
+    </div>
+
+    {# Curved Wave Divider → white #}
+    <div class="absolute bottom-0 inset-x-0 overflow-hidden leading-none z-20 pointer-events-none">
+      <svg viewBox="0 0 1440 100" fill="none" xmlns="http://www.w3.org/2000/svg"
+           class="relative block w-full h-8 sm:h-14 lg:h-16" preserveAspectRatio="none">
+        <path d="M0 35C240 75 480 85 720 60C960 35 1200 45 1440 75V100H0V35Z" fill="#F6FAF7" />
+      </svg>
+    </div>
+
+  </section>
+
+  {# ── How It Works Section ── #}
+  <section id="how-it-works" class="py-20 bg-[#F6FAF7]">
+    <div class="max-w-7xl mx-auto px-6">
+      
+      <div class="text-center max-w-2xl mx-auto mb-16">
+        <span class="text-xs font-semibold text-emerald-800 bg-emerald-100/70 border border-emerald-300/60 px-3 py-1 rounded-md inline-block">Workflow pathway</span>
+        <h2 class="text-3xl font-extrabold text-slate-900 mt-3">How it works</h2>
+        <p class="text-slate-600 mt-3 text-sm">Four-step diagnostic sequence designed for accuracy, specimen custody tracking, and patient clarity.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        {# Step 1: Book #}
+        <div class="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-emerald-400 transition-colors">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="w-8 h-8 rounded-lg bg-emerald-800 text-white font-bold text-xs flex items-center justify-center font-mono">01</span>
+              <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
               </div>
             </div>
+            <h3 class="font-bold text-slate-900 text-base mb-1">Book</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">Select your diagnostic tests, choose your appointment date, and reserve a convenient slot.</p>
+          </div>
+        </div>
 
-            <div style="display:flex;align-items:center;gap:0.75rem;">
-              <span class="badge badge-green" style="font-size:0.6875rem;">Active</span>
-              <div style="width:28px;height:28px;border-radius:6px;background:var(--bg-page);display:grid;place-items:center;">
-                <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--navy-subtle);transition:transform 0.2s;"
-                   :style="activeCat === {{ loop.index }} ? 'transform:rotate(180deg);color:var(--primary);' : ''"></i>
+        {# Step 2: Collect #}
+        <div class="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-emerald-400 transition-colors">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="w-8 h-8 rounded-lg bg-emerald-800 text-white font-bold text-xs flex items-center justify-center font-mono">02</span>
+              <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <i data-lucide="user-check" class="w-4 h-4"></i>
               </div>
             </div>
-          </button>
+            <h3 class="font-bold text-slate-900 text-base mb-1">Collect</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">Our certified team collects your specimen and pairs it with a barcode identifier.</p>
+          </div>
+        </div>
 
-          {# Category Expanded Body #}
-          <div x-show="activeCat === {{ loop.index }}" x-cloak style="border-top:1px solid var(--card-border);background:var(--bg-page);padding:1.25rem 1.5rem;">
-            
-            {# Per-category Search Input #}
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
-              <div style="position:relative;width:100%;max-width:340px;">
-                <i data-lucide="search" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--navy-subtle);"></i>
-                <input type="text" x-model="search" placeholder="Search tests in {{ cat.category_name }}..."
-                       class="form-control" style="padding-left:2.25rem;font-size:0.8125rem;height:38px;background:#FFFFFF;border-color:var(--card-border);">
-              </div>
-              <div style="font-size:0.75rem;color:var(--navy-muted);display:flex;align-items:center;gap:0.35rem;">
-                <i data-lucide="check-circle" style="width:13px;height:13px;color:var(--primary);"></i>
-                <span>Showing <strong x-text="filteredTests.length"></strong> of {{ cat.tests | length }} tests</span>
+        {# Step 3: Test #}
+        <div class="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-emerald-400 transition-colors">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="w-8 h-8 rounded-lg bg-emerald-800 text-white font-bold text-xs flex items-center justify-center font-mono">03</span>
+              <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <i data-lucide="microscope" class="w-4 h-4"></i>
               </div>
             </div>
+            <h3 class="font-bold text-slate-900 text-base mb-1">Analyze</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">Qualified laboratory technologists analyze your specimen with internal QC checks.</p>
+          </div>
+        </div>
 
-            {# Tests Table #}
-            <div style="background:#FFFFFF;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;">
-              <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;text-align:left;font-size:0.875rem;">
+        {# Step 4: Verified Report #}
+        <div class="bg-white p-6 rounded-xl border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-emerald-400 transition-colors">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="w-8 h-8 rounded-lg bg-emerald-800 text-white font-bold text-xs flex items-center justify-center font-mono">04</span>
+              <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <i data-lucide="file-check-2" class="w-4 h-4"></i>
+              </div>
+            </div>
+            <h3 class="font-bold text-slate-900 text-base mb-1">Verify & release</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">A consultant pathologist reviews all parameters and signs off on the final report.</p>
+          </div>
+        </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  {# ── Browse Our Tests Section (Collapsed by Default) ── #}
+  <section id="browse-tests" class="py-12 bg-[#F6FAF7]">
+    <div class="max-w-5xl mx-auto px-6">
+      
+      {# Slim White Card Header #}
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden transition-all">
+        <button type="button" @click="catalogOpen = !catalogOpen" 
+                :aria-expanded="catalogOpen.toString()"
+                class="w-full p-6 sm:p-7 flex items-center justify-between text-left border-0 bg-transparent hover:bg-slate-50/75 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-inset">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="layers" class="w-6 h-6 text-emerald-700"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-slate-900 text-lg sm:text-xl">Browse our tests</h3>
+              <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Explore categories and prices across {{ categories | length }} specialized departments</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <span class="hidden sm:inline-block text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200" x-text="catalogOpen ? 'Collapse Test Directory' : 'Explore All Categories ({{ categories | length }})'"></span>
+            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 transition-transform duration-200" :class="catalogOpen ? 'rotate-180 text-emerald-700 bg-emerald-100' : ''">
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </div>
+          </div>
+        </button>
+
+        {# Expanded Category Accordion Rows #}
+        <div x-show="catalogOpen" x-cloak class="border-t border-slate-100 p-4 sm:p-6 space-y-3 bg-[#F6FAF7]/50">
+          {% for cat in categories %}
+          <div class="card border border-slate-200/80 rounded-xl overflow-hidden bg-white shadow-2xs"
+               x-data="{
+                 search: '',
+                 visibleCount: {{ cat.tests | length }},
+                 updateCount() {
+                   const q = this.search.toLowerCase().trim();
+                   if (!q) {
+                     this.visibleCount = {{ cat.tests | length }};
+                     return;
+                   }
+                   this.visibleCount = Array.from($el.querySelectorAll('.test-row')).filter(function(r) {
+                     return r.dataset.filter.indexOf(q) !== -1;
+                   }).length;
+                 }
+               }">
+
+            {# Category Header Row #}
+            <button type="button" @click="activeCat = (activeCat === {{ loop.index }} ? null : {{ loop.index }})"
+                    :aria-expanded="(activeCat === {{ loop.index }}).toString()"
+                    class="w-full px-5 py-3.5 flex items-center justify-between text-left border-0 bg-transparent hover:bg-slate-50 cursor-pointer transition-colors focus:outline-none focus:bg-slate-50">
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                  {{ "%02d" % loop.index }}
+                </span>
+                <span class="font-bold text-sm text-slate-900">{{ loop.index }}. {{ cat.category_name }}</span>
+                <span class="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-full ml-1">
+                  {{ cat.tests | length }} tests
+                </span>
+              </div>
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 transition-transform" :class="activeCat === {{ loop.index }} ? 'rotate-180 text-emerald-700' : ''">
+                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+              </div>
+            </button>
+
+            {# Category Body & Per-Category Live Filter #}
+            <div x-show="activeCat === {{ loop.index }}" x-cloak class="border-t border-slate-200/70 bg-[#F6FAF7] p-4">
+              
+              {# Search in Category Input #}
+              <div class="mb-3 max-w-sm">
+                <input type="text" x-model="search" @input="updateCount()" placeholder="Search in {{ cat.category_name }}..."
+                       class="w-full h-8 px-3 text-xs rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600">
+              </div>
+
+              {# Tests Table #}
+              <div class="bg-white rounded-lg border border-slate-200/80 overflow-x-auto">
+                <table class="w-full text-left text-xs">
                   <thead>
-                    <tr style="background:#F8FAFC;border-bottom:1px solid var(--card-border);color:var(--navy-muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.04em;">
-                      <th style="padding:0.75rem 1rem;">Code</th>
-                      <th style="padding:0.75rem 1rem;">Test Name</th>
-                      <th style="padding:0.75rem 1rem;">Sample Type</th>
-                      <th style="padding:0.75rem 1rem;">Turnaround</th>
-                      <th style="padding:0.75rem 1rem;text-align:right;">Price</th>
-                      <th style="padding:0.75rem 1rem;text-align:center;">Action</th>
+                    <tr class="bg-slate-50 border-b border-slate-200/80 text-slate-500 uppercase font-semibold text-[10px] tracking-wider">
+                      <th class="p-2.5">Code</th>
+                      <th class="p-2.5">Test Name</th>
+                      <th class="p-2.5">Sample</th>
+                      <th class="p-2.5">TAT</th>
+                      <th class="p-2.5 text-right">Price</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <template x-for="t in filteredTests" :key="t.id">
-                      <tr style="border-bottom:1px solid var(--card-border);transition:background 0.15s;"
-                          onmouseover="this.style.background='#F8FAFC'"
-                          onmouseout="this.style.background='transparent'">
-                        <td style="padding:0.875rem 1rem;white-space:nowrap;">
-                          <span class="font-mono" style="font-size:0.75rem;font-weight:700;color:var(--primary);background:var(--primary-light);padding:0.2rem 0.5rem;border-radius:4px;" x-text="t.code"></span>
-                        </td>
-                        <td style="padding:0.875rem 1rem;">
-                          <div style="font-weight:600;color:var(--navy-ink);" x-text="t.name"></div>
-                          <template x-if="t.instructions">
-                            <div style="font-size:0.6875rem;color:var(--navy-subtle);margin-top:0.25rem;display:flex;align-items:center;gap:0.25rem;">
-                              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--primary);flex-shrink:0;"></span>
-                              <span x-text="t.instructions"></span>
-                            </div>
-                          </template>
-                        </td>
-                        <td style="padding:0.875rem 1rem;color:var(--navy-muted);white-space:nowrap;" x-text="t.sample"></td>
-                        <td style="padding:0.875rem 1rem;color:var(--navy-subtle);font-size:0.8125rem;white-space:nowrap;" x-text="t.turnaround"></td>
-                        <td style="padding:0.875rem 1rem;text-align:right;white-space:nowrap;">
-                          <span class="font-mono font-bold" style="color:var(--primary);font-size:0.9375rem;" x-text="'PKR ' + t.price"></span>
-                        </td>
-                        <td style="padding:0.875rem 1rem;text-align:center;white-space:nowrap;">
-                          <a href="{{ url_for('auth.signup') }}" class="btn btn-primary btn-sm" style="padding:0.35rem 0.75rem;font-size:0.75rem;">
-                            Book Test
-                          </a>
-                        </td>
-                      </tr>
-                    </template>
+                    {% for t in cat.tests %}
+                    <tr class="test-row border-b border-slate-100 hover:bg-slate-50/75"
+                        data-filter="{{ (t.test_name ~ ' ' ~ t.test_code) | lower }}"
+                        x-show="!search.trim() || $el.dataset.filter.indexOf(search.toLowerCase().trim()) !== -1">
+                      <td class="p-2.5 font-mono font-bold text-emerald-800">{{ t.test_code }}</td>
+                      <td class="p-2.5 font-medium text-slate-900">{{ t.test_name }}</td>
+                      <td class="p-2.5 text-slate-600">
+                        <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px]">{{ t.sample_type or 'Serum' }}</span>
+                      </td>
+                      <td class="p-2.5 text-slate-500 font-mono">{{ t.turnaround_hours }}h</td>
+                      <td class="p-2.5 font-mono font-bold text-right text-slate-900">PKR {{ '{:,.0f}'.format(t.price) }}</td>
+                    </tr>
+                    {% endfor %}
                   </tbody>
                 </table>
-              </div>
-
-              {# Empty State Message for Filter #}
-              <div x-show="filteredTests.length === 0" style="padding:2.5rem 1.5rem;text-align:center;background:#FFFFFF;">
-                <div style="width:40px;height:40px;border-radius:50%;background:var(--bg-page);display:grid;place-items:center;margin:0 auto 0.75rem auto;">
-                  <i data-lucide="search-x" style="width:20px;height:20px;color:var(--navy-subtle);"></i>
+                
+                <div x-show="visibleCount === 0" x-cloak class="p-4 text-center text-xs text-slate-400">
+                  No tests found in this category
                 </div>
-                <div style="font-weight:600;color:var(--navy-ink);font-size:0.9375rem;margin-bottom:0.25rem;">No tests found in this category</div>
-                <div style="font-size:0.8125rem;color:var(--navy-muted);">Try typing a different keyword or test code.</div>
               </div>
 
             </div>
-
           </div>
+          {% endfor %}
         </div>
-        {% endfor %}
       </div>
 
     </div>
+  </section>
 
-    {# Collapsed Preview State (When open is false) #}
-    <div x-show="!open" style="background:#FFFFFF;border:1px dashed var(--card-border);border-radius:12px;padding:2.5rem;text-align:center;cursor:pointer;" @click="open = true">
-      <div style="width:48px;height:48px;border-radius:12px;background:var(--primary-light);display:grid;place-items:center;margin:0 auto 1rem auto;">
-        <i data-lucide="file-text" style="width:24px;height:24px;color:var(--primary);"></i>
+  {# ── Why choose MedLab Section ── #}
+  <section id="why-medlab" class="py-12 bg-[#F6FAF7]">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="bg-[#0B3D2E] rounded-3xl p-8 lg:p-12 text-white relative overflow-hidden">
+        
+        {# Decorative Background Elements in Deep Green #}
+        <div class="absolute -right-16 -bottom-16 w-80 h-80 opacity-10 pointer-events-none">
+          <svg viewBox="0 0 200 200" fill="currentColor">
+            <path d="M100 0 L130 70 L200 70 L145 115 L165 185 L100 145 L35 185 L55 115 L0 70 L70 70 Z" />
+          </svg>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+          
+          {# Left Content #}
+          <div class="lg:col-span-5 space-y-4">
+            <span class="text-xs font-medium text-emerald-300 bg-emerald-950/80 border border-emerald-500/30 px-3 py-1 rounded-md inline-block">Laboratory standards</span>
+            <h2 class="text-3xl font-extrabold text-white">Why choose MedLab</h2>
+            <p class="text-emerald-100/80 text-sm leading-relaxed">
+              Direct pathologist oversight, barcode-tracked specimens, and an integrated portal provide total diagnostic transparency.
+            </p>
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-500/30 text-xs text-emerald-300">
+              <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+              Reports released exclusively after pathologist approval
+            </div>
+          </div>
+
+          {# Right 4 Benefit Cards #}
+          <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            {# Point 1 #}
+            <div class="bg-emerald-950/50 border border-emerald-700/40 p-5 rounded-xl">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3">
+                <i data-lucide="file-check-2" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <h4 class="font-bold text-white text-sm">Pathologist-verified reports</h4>
+              <p class="text-xs text-emerald-100/70 mt-1 leading-relaxed">Every report is reviewed and approved by a pathologist before you can see it.</p>
+            </div>
+
+            {# Point 2 #}
+            <div class="bg-emerald-950/50 border border-emerald-700/40 p-5 rounded-xl">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3">
+                <i data-lucide="microscope" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <h4 class="font-bold text-white text-sm">Advanced Diagnostic Testing</h4>
+              <p class="text-xs text-emerald-100/70 mt-1 leading-relaxed">State-of-the-art biochemistry and hematology analyzers with automated QC checks.</p>
+            </div>
+
+            {# Point 3 #}
+            <div class="bg-emerald-950/50 border border-emerald-700/40 p-5 rounded-xl">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3">
+                <i data-lucide="bell" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <h4 class="font-bold text-white text-sm">Real-time status updates</h4>
+              <p class="text-xs text-emerald-100/70 mt-1 leading-relaxed">Follow your booking from payment to report, with in-app notifications.</p>
+            </div>
+
+            {# Point 4 #}
+            <div class="bg-emerald-950/50 border border-emerald-700/40 p-5 rounded-xl">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3">
+                <i data-lucide="lock" class="w-4 h-4 text-emerald-400"></i>
+              </div>
+              <h4 class="font-bold text-white text-sm">Secure patient portal</h4>
+              <p class="text-xs text-emerald-100/70 mt-1 leading-relaxed">Your reports sit behind your login. Only you and authorised lab staff can open them.</p>
+            </div>
+
+          </div>
+
+        </div>
       </div>
-      <h3 style="font-size:1.125rem;font-weight:700;color:var(--navy-ink);margin-bottom:0.375rem;">
-        Complete Clinical Laboratory Directory
-      </h3>
-      <p style="font-size:0.875rem;color:var(--navy-muted);max-width:480px;margin:0 auto 1.25rem auto;">
-        Explore all {{ tests | length }} tests across Hematology, Biochemistry, Endocrinology, and more with exact turnaround times and transparent fees.
-      </p>
-      <button type="button" class="btn btn-outline btn-sm" style="pointer-events:none;">
-        <i data-lucide="chevron-down" style="width:14px;height:14px;"></i> Expand Test Catalog
-      </button>
     </div>
+  </section>
 
-  </div>
-</section>
+  {# ── FAQ Section (Alpine Accordion) ── #}
+  <section id="faq" class="py-20 bg-[#F6FAF7]" x-data="{ activeFaq: 0 }">
+    <div class="max-w-4xl mx-auto px-6">
+      
+      <div class="text-center mb-14">
+        <span class="text-xs font-semibold text-emerald-800 bg-emerald-100/70 border border-emerald-300/60 px-3 py-1 rounded-md inline-block">Questions &amp; answers</span>
+        <h2 class="text-3xl font-extrabold text-slate-900 mt-3">Frequently asked questions</h2>
+        <p class="text-slate-600 mt-3 text-sm">Answers to common clinical inquiries about sample collection, turnaround, and security.</p>
+      </div>
 
-{# ── Health Packages Section ── #}
-<section id="packages" style="padding:4.5rem 5vw;background:#FFFFFF;border-bottom:1px solid var(--card-border);">
-  <div style="max-width:1160px;margin:0 auto;">
-    <div style="text-align:center;max-width:640px;margin:0 auto 3rem auto;">
-      <span class="pill-tag" style="margin-bottom:0.75rem;">Comprehensive Checkups</span>
-      <h2 style="font-size:clamp(1.875rem, 3vw, 2.5rem);letter-spacing:-0.025em;">Curated Health Packages</h2>
-      <p style="font-size:0.9375rem;color:var(--navy-muted);margin-top:0.5rem;">
-        Combined clinical profiles designed for preventative wellness and chronic disease screening at bundled rates.
-      </p>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(270px, 1fr));gap:1.5rem;">
-      {% for p in packages %}
-      <div class="card" style="padding:2rem;display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--card-border);border-top:4px solid var(--primary);position:relative;">
-        {% if p.discount_pct and p.discount_pct > 0 %}
-          <div style="position:absolute;top:1rem;right:1rem;">
-            <span class="badge badge-green" style="font-weight:700;">
-              Save {{ p.discount_pct | int }}%
-            </span>
-          </div>
-        {% endif %}
-
-        <div>
-          <span class="font-mono" style="font-size:0.75rem;font-weight:700;color:var(--navy-subtle);">{{ p.package_code }}</span>
-          <h3 style="font-size:1.25rem;font-weight:700;color:var(--navy-ink);margin:0.25rem 0 0.5rem 0;">
-            {{ p.package_name }}
-          </h3>
-          <p style="font-size:0.8125rem;color:var(--navy-muted);line-height:1.5;margin-bottom:1.25rem;">
-            {{ p.description }}
-          </p>
-
-          <div style="font-size:0.75rem;font-weight:700;color:var(--navy-ink);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem;">
-            Included Tests ({{ p.test_count }}):
-          </div>
-          <div style="font-size:0.8125rem;color:var(--navy-muted);line-height:1.6;margin-bottom:1.5rem;">
-            {{ p.test_list }}
+      <div class="space-y-4">
+        
+        {# FAQ 1 #}
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 transition-all">
+          <button type="button" @click="activeFaq = (activeFaq === 0 ? null : 0)"
+                  :aria-expanded="(activeFaq === 0).toString()"
+                  class="w-full flex items-center justify-between font-bold text-slate-900 text-base text-left border-0 bg-transparent cursor-pointer focus:outline-none focus:text-emerald-800">
+            <span>How do I book a test?</span>
+            <div class="w-6 h-6 flex items-center justify-center text-slate-400 transition-transform duration-300" :class="activeFaq === 0 ? 'rotate-180 text-emerald-700' : ''">
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </div>
+          </button>
+          <div x-show="activeFaq === 0" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-1"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 leading-relaxed">
+            Create a patient account, select your diagnostic tests, choose your preferred appointment date and time slot, and confirm your booking.
           </div>
         </div>
 
-        <div style="padding-top:1.25rem;border-top:1px solid var(--card-border);">
-          <div style="display:flex;align-items:baseline;gap:0.5rem;margin-bottom:1rem;">
-            <span class="font-mono font-bold" style="font-size:1.75rem;color:var(--primary);">
-              PKR {{ "{:,.0f}".format(p.package_price) }}
-            </span>
-            {% if p.original_price and p.original_price > p.package_price %}
-              <span class="font-mono" style="font-size:0.9375rem;color:var(--navy-subtle);text-decoration:line-through;">
-                PKR {{ "{:,.0f}".format(p.original_price) }}
-              </span>
-            {% endif %}
+        {# FAQ 2 #}
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 transition-all">
+          <button type="button" @click="activeFaq = (activeFaq === 1 ? null : 1)"
+                  :aria-expanded="(activeFaq === 1).toString()"
+                  class="w-full flex items-center justify-between font-bold text-slate-900 text-base text-left border-0 bg-transparent cursor-pointer focus:outline-none focus:text-emerald-800">
+            <span>How do I receive my verified test report?</span>
+            <div class="w-6 h-6 flex items-center justify-center text-slate-400 transition-transform duration-300" :class="activeFaq === 1 ? 'rotate-180 text-emerald-700' : ''">
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </div>
+          </button>
+          <div x-show="activeFaq === 1" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-1"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 leading-relaxed">
+            Once your specimen is analyzed by our laboratory technologists and approved by a consultant pathologist, your digital report is instantly unlocked in your secure patient portal for viewing and printing.
           </div>
-          <a href="{{ url_for('auth.signup') }}" class="btn btn-primary" style="width:100%;justify-content:center;">
-            Book This Package
+        </div>
+
+        {# FAQ 3 #}
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 transition-all">
+          <button type="button" @click="activeFaq = (activeFaq === 2 ? null : 2)"
+                  :aria-expanded="(activeFaq === 2).toString()"
+                  class="w-full flex items-center justify-between font-bold text-slate-900 text-base text-left border-0 bg-transparent cursor-pointer focus:outline-none focus:text-emerald-800">
+            <span>Do I need to fast before my test?</span>
+            <div class="w-6 h-6 flex items-center justify-center text-slate-400 transition-transform duration-300" :class="activeFaq === 2 ? 'rotate-180 text-emerald-700' : ''">
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </div>
+          </button>
+          <div x-show="activeFaq === 2" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-1"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 leading-relaxed">
+            It depends on the test. Tests that need fasting show a fasting note on the booking page. Follow that note.
+          </div>
+        </div>
+
+        {# FAQ 4 #}
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 transition-all">
+          <button type="button" @click="activeFaq = (activeFaq === 3 ? null : 3)"
+                  :aria-expanded="(activeFaq === 3).toString()"
+                  class="w-full flex items-center justify-between font-bold text-slate-900 text-base text-left border-0 bg-transparent cursor-pointer focus:outline-none focus:text-emerald-800">
+            <span>How long do results take?</span>
+            <div class="w-6 h-6 flex items-center justify-center text-slate-400 transition-transform duration-300" :class="activeFaq === 3 ? 'rotate-180 text-emerald-700' : ''">
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </div>
+          </button>
+          <div x-show="activeFaq === 3" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-1"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 leading-relaxed">
+            Each test lists its own turnaround time, and most are between 4 and 24 hours once the sample reaches the lab.
+          </div>
+        </div>
+
+        {# FAQ 5 #}
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 transition-all">
+          <button type="button" @click="activeFaq = (activeFaq === 4 ? null : 4)"
+                  :aria-expanded="(activeFaq === 4).toString()"
+                  class="w-full flex items-center justify-between font-bold text-slate-900 text-base text-left border-0 bg-transparent cursor-pointer focus:outline-none focus:text-emerald-800">
+            <span>Who verifies my report?</span>
+            <div class="w-6 h-6 flex items-center justify-center text-slate-400 transition-transform duration-300" :class="activeFaq === 4 ? 'rotate-180 text-emerald-700' : ''">
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </div>
+          </button>
+          <div x-show="activeFaq === 4" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-1"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 leading-relaxed">
+            A pathologist reviews the technician's results and approves them. You can open the report only after that approval.
+          </div>
+        </div>
+
+        {# FAQ 6 #}
+        <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 transition-all">
+          <button type="button" @click="activeFaq = (activeFaq === 5 ? null : 5)"
+                  :aria-expanded="(activeFaq === 5).toString()"
+                  class="w-full flex items-center justify-between font-bold text-slate-900 text-base text-left border-0 bg-transparent cursor-pointer focus:outline-none focus:text-emerald-800">
+            <span>Is my medical data secure?</span>
+            <div class="w-6 h-6 flex items-center justify-center text-slate-400 transition-transform duration-300" :class="activeFaq === 5 ? 'rotate-180 text-emerald-700' : ''">
+              <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </div>
+          </button>
+          <div x-show="activeFaq === 5" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-1"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 leading-relaxed">
+            Passwords are stored hashed and every report sits behind your login. Only you and authorised lab staff can open it.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  {# ── Closing CTA Banner ── #}
+  <section class="py-16 bg-[#F6FAF7]">
+    <div class="max-w-4xl mx-auto px-6 text-center space-y-5">
+      <h2 class="text-3xl font-extrabold text-slate-900">Ready to take control of your health?</h2>
+      <p class="text-slate-600 text-sm max-w-lg mx-auto">Create your secure account to book diagnostic testing and access your medical reports.</p>
+      <div class="pt-2 flex flex-wrap justify-center items-center gap-4">
+        {% if current_user.is_authenticated %}
+          {% set dash_url = url_for('patient.dashboard') %}
+          {% if current_user.role_id == 1 %}{% set dash_url = url_for('admin.dashboard') %}
+          {% elif current_user.role_id == 2 %}{% set dash_url = url_for('receptionist.dashboard') %}
+          {% elif current_user.role_id == 3 %}{% set dash_url = url_for('technician.dashboard') %}
+          {% elif current_user.role_id == 6 %}{% set dash_url = url_for('pathologist.dashboard') %}
+          {% endif %}
+          <a href="{{ dash_url }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-emerald-800 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors shadow-sm no-underline">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 text-emerald-300"></i>
+            Go to Dashboard
           </a>
-        </div>
+        {% endif %}
+        <button type="button" @click="openAuth('signup')" class="inline-block px-6 py-3 rounded-lg bg-[#0B3D2E] text-white font-semibold text-sm hover:bg-emerald-900 transition-colors shadow-sm border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-600">
+          Sign Up
+        </button>
       </div>
-      {% endfor %}
     </div>
+  </section>
+
+  {# ── Footer ── #}
+  <footer class="mt-auto bg-[#07271D] text-emerald-100/70 border-t border-emerald-900/60 py-10">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-xs">
+      
+      {# Footer Logo #}
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-md bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <i data-lucide="flask-conical" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <span class="text-white font-bold text-sm font-display">MedLab</span>
+      </div>
+
+      {# Footer Nav Links #}
+      <div class="flex items-center gap-6 flex-wrap justify-center">
+        <a href="#how-it-works" class="hover:text-emerald-300 transition-colors no-underline">How It Works</a>
+        <a href="#why-medlab" class="hover:text-emerald-300 transition-colors no-underline">Why MedLab</a>
+        <a href="#faq" class="hover:text-emerald-300 transition-colors no-underline">Frequently Asked Questions</a>
+        {% if current_user.is_authenticated %}
+          {% set dash_url = url_for('patient.dashboard') %}
+          {% if current_user.role_id == 1 %}{% set dash_url = url_for('admin.dashboard') %}
+          {% elif current_user.role_id == 2 %}{% set dash_url = url_for('receptionist.dashboard') %}
+          {% elif current_user.role_id == 3 %}{% set dash_url = url_for('technician.dashboard') %}
+          {% elif current_user.role_id == 6 %}{% set dash_url = url_for('pathologist.dashboard') %}
+          {% endif %}
+          <a href="{{ dash_url }}" class="hover:text-emerald-300 transition-colors no-underline">Dashboard</a>
+        {% endif %}
+        <button type="button" @click="openAuth('login')" class="hover:text-emerald-300 transition-colors bg-transparent border-0 cursor-pointer p-0 text-xs text-emerald-100/70">Log In</button>
+      </div>
+
+      {# Footer Contact Info & Copyright #}
+      <div class="text-center md:text-right space-y-1">
+        <p>care@medlab.pk &bull; +92 300 0000000</p>
+        <p>&copy; MedLab. All rights reserved.</p>
+      </div>
+
+    </div>
+  </footer>
+
+  {# ── Toast Notifications Container (Fixed Top-Right) ── #}
+  <div id="toast-container" class="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="toast-item toast-{{ category }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" x-transition.duration.300ms>
+            <div style="width:24px;height:24px;border-radius:6px;background:{% if category == 'success' %}#DCFCE7;color:#166534;{% elif category == 'danger' or category == 'error' %}#FEE2E2;color:#DC2626;{% elif category == 'warning' %}#FEF3C7;color:#D97706;{% else %}#DCFCE7;color:#166534;{% endif %};display:grid;place-items:center;flex-shrink:0;">
+              {% if category == 'success' %}<i data-lucide="check-circle-2" style="width:14px;height:14px;"></i>
+              {% elif category == 'danger' or category == 'error' %}<i data-lucide="alert-circle" style="width:14px;height:14px;"></i>
+              {% elif category == 'warning' %}<i data-lucide="alert-triangle" style="width:14px;height:14px;"></i>
+              {% else %}<i data-lucide="info" style="width:14px;height:14px;"></i>{% endif %}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.8125rem;font-weight:600;color:#0F172A;line-height:1.35;">{{ message }}</div>
+            </div>
+            <button @click="show = false" style="background:none;border:none;cursor:pointer;color:#94A3B8;padding:0.125rem;display:flex;align-items:center;">
+              <i data-lucide="x" style="width:14px;height:14px;"></i>
+            </button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
   </div>
-</section>
 
-{# ── Home Collection Spotlight ── #}
-<section id="home-collection" style="padding:4.5rem 5vw;background:var(--bg-page);border-bottom:1px solid var(--card-border);">
-  <div style="max-width:1160px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:3rem;align-items:center;">
-    <div>
-      <span class="pill-tag" style="margin-bottom:0.75rem;">Doorstep Healthcare</span>
-      <h2 style="font-size:clamp(1.875rem, 3vw, 2.5rem);letter-spacing:-0.025em;margin-bottom:1rem;">
-        Certified Phlebotomy At Your Doorstep.
-      </h2>
-      <p style="font-size:1rem;color:var(--navy-muted);line-height:1.6;margin-bottom:1.75rem;">
-        Cannot visit the diagnostic centre? Select "Home Visit" during checkout. Our certified medical phlebotomists arrive with cold-chain transportation boxes and sterile single-use kits.
-      </p>
+  {# ── Auth Modal Overlay (Log In / Sign Up) ── #}
+  <div x-show="authModal !== null"
+       x-cloak
+       style="display: none;"
+       class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+       @click.self="closeAuth()">
 
-      <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:2rem;">
-        <div style="display:flex;gap:0.75rem;">
-          <i data-lucide="check-circle-2" style="color:var(--primary);width:20px;height:20px;flex-shrink:0;"></i>
-          <span style="font-size:0.9375rem;color:var(--navy-ink);font-weight:500;">Sterile vacuum tube collection conforming to WHO phlebotomy guidelines</span>
-        </div>
-        <div style="display:flex;gap:0.75rem;">
-          <i data-lucide="check-circle-2" style="color:var(--primary);width:20px;height:20px;flex-shrink:0;"></i>
-          <span style="font-size:0.9375rem;color:var(--navy-ink);font-weight:500;">Digital barcoding printed and scanned in real-time at your bedside</span>
-        </div>
-        <div style="display:flex;gap:0.75rem;">
-          <i data-lucide="check-circle-2" style="color:var(--primary);width:20px;height:20px;flex-shrink:0;"></i>
-          <span style="font-size:0.9375rem;color:var(--navy-ink);font-weight:500;">Direct temperature-controlled cold transport to central processing laboratory</span>
-        </div>
+    {# Blurred Backdrop (Landing page remains visible and scrollable beneath) #}
+    <div class="absolute inset-0 bg-[#063122]/65 backdrop-blur-md transition-opacity duration-300"
+         @click="closeAuth()"></div>
+
+    {# ── LOGIN CARD ── #}
+    <div x-show="authModal === 'login'"
+         x-cloak
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="relative w-full max-w-md z-10"
+         x-data="{ showPw: false }">
+
+      {# Close Button #}
+      <button type="button" @click="closeAuth()"
+              class="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-200 text-slate-500 hover:text-slate-800 cursor-pointer z-20 focus:outline-none">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      {# Brand Header #}
+      <div class="text-center mb-5">
+        <a href="{{ url_for('auth.landing') }}" class="inline-flex items-center gap-2.5 text-white no-underline">
+          <div class="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center shadow-xs">
+            <i data-lucide="flask-conical" class="text-white w-5 h-5"></i>
+          </div>
+          <span class="font-display text-2xl font-bold tracking-tight text-white">MedLab</span>
+        </a>
       </div>
 
-      <a href="{{ url_for('auth.signup') }}" class="btn btn-primary btn-lg">
-        Schedule Home Collection
-      </a>
-    </div>
-
-    <div class="card" style="padding:2.5rem;background:#FFFFFF;border:1px solid var(--card-border);box-shadow:var(--shadow-card);">
-      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
-        <div style="width:48px;height:48px;border-radius:10px;background:var(--primary-light);display:grid;place-items:center;">
-          <i data-lucide="truck" style="color:var(--primary);width:24px;height:24px;"></i>
+      {# Card #}
+      <div class="bg-white rounded-xl border border-slate-200 shadow-2xl p-6 sm:p-7">
+        <div class="mb-5">
+          <h2 class="text-xl font-bold text-slate-900 tracking-tight">Sign In</h2>
+          <p class="text-xs text-slate-500 mt-1">Access your diagnostic portal, worklists, or test records</p>
         </div>
-        <div>
-          <h4 style="font-size:1.125rem;font-weight:700;">Home Phlebotomy Coverage</h4>
-          <p style="font-size:0.8125rem;color:var(--navy-muted);">Available 7 days a week, 07:00 AM – 06:00 PM</p>
+
+        {# Error Banner #}
+        <div x-show="modalLoginError" x-cloak class="p-3 mb-4 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 font-medium leading-relaxed" x-text="modalLoginError"></div>
+
+        <form @submit.prevent="submitModalLogin()">
+          {# Email #}
+          <div class="form-group mb-4">
+            <label class="form-label" for="modal_login_email">Email Address</label>
+            <input type="email" x-model="modalLoginEmail" id="modal_login_email"
+                   class="form-control h-10" placeholder="name@medlab.pk"
+                   autocomplete="email" required>
+          </div>
+
+          {# Password with Show/Hide #}
+          <div class="form-group mb-5">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="form-label mb-0" for="modal_login_password">Password</label>
+              <a href="{{ url_for('auth.forgot_password') }}" class="text-xs font-semibold text-emerald-800 hover:text-emerald-900 no-underline">
+                Forgot password?
+              </a>
+            </div>
+            <div class="relative">
+              <input :type="showPw ? 'text' : 'password'" x-model="modalLoginPassword" id="modal_login_password"
+                     class="form-control h-10 pr-14" placeholder="••••••••"
+                     autocomplete="current-password" required>
+              <button type="button" @click="showPw = !showPw"
+                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600 px-1 py-0.5 border-none bg-transparent cursor-pointer">
+                <span x-show="!showPw">Show</span>
+                <span x-show="showPw">Hide</span>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" :disabled="modalLoginLoading" class="btn btn-primary w-full h-10 text-sm font-semibold justify-center">
+            <span x-show="!modalLoginLoading">Sign In to Account</span>
+            <span x-show="modalLoginLoading" x-cloak class="inline-flex items-center gap-2">
+              <span class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              Signing in...
+            </span>
+          </button>
+        </form>
+
+        {# Divider #}
+        <div class="flex items-center my-4">
+          <div class="flex-1 h-px bg-slate-200"></div>
+          <span class="px-3 text-2xs uppercase tracking-wider font-semibold text-slate-400">or</span>
+          <div class="flex-1 h-px bg-slate-200"></div>
         </div>
-      </div>
-      <div style="background:var(--bg-page);padding:1.25rem;border-radius:8px;border:1px solid var(--card-border);margin-bottom:1.5rem;">
-        <div class="font-mono" style="font-size:0.75rem;color:var(--primary);font-weight:700;text-transform:uppercase;margin-bottom:0.25rem;">Standard Turnaround</div>
-        <div style="font-size:0.875rem;font-weight:600;color:var(--navy-ink);">Routine blood panels processed within 12 hours of collection.</div>
-      </div>
-      <p style="font-size:0.8125rem;color:var(--navy-subtle);line-height:1.5;">
-        Home collection charges are waived for all comprehensive wellness packages. Available across all major municipal zones.
-      </p>
-    </div>
-  </div>
-</section>
 
-{# ── Green Feature Panel (Why Us) ── #}
-<section id="why-us" style="padding:4.5rem 5vw;background:#FFFFFF;">
-  <div style="max-width:1160px;margin:0 auto;">
-    <div class="green-feature-panel">
-      <div style="max-width:680px;margin-bottom:2.5rem;">
-        <span class="pill-tag-white pill-tag" style="margin-bottom:1rem;">
-          Clinical Standards
-        </span>
-        <h2 style="font-size:clamp(2rem, 3.5vw, 2.75rem);font-weight:800;letter-spacing:-0.025em;margin-bottom:1rem;color:#FFFFFF;">
-          Engineered For Clinical Certainty.
-        </h2>
-        <p style="font-size:1.0625rem;line-height:1.6;color:rgba(255,255,255,0.9);">
-          Diagnostic data directly informs life-critical therapy decisions. We built our systems with database-level validation, multi-tier approvals, and immutable audit logs.
-        </p>
-      </div>
+        {# Google OAuth #}
+        <button type="button"
+                data-action="google-signin"
+                @click="triggerGoogleSignIn($event)"
+                class="btn btn-google w-full h-10 text-xs font-medium flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer bg-white">
+          <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+          </svg>
+          <span class="text-slate-700 font-semibold">Continue with Google</span>
+        </button>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:2rem;">
-        <div>
-          <div class="font-mono font-bold" style="font-size:1.1875rem;color:#DCFCE7;margin-bottom:0.5rem;">01. Pathology Sign-Off</div>
-          <p style="font-size:0.875rem;line-height:1.6;color:rgba(255,255,255,0.85);">
-            Every completed diagnostic set requires senior pathologist review. Abnormal results trigger automatic verification alerts before release.
+        {# Switch to Sign Up #}
+        <div class="text-center mt-5 pt-4 border-t border-slate-100">
+          <p class="text-xs text-slate-500">
+            Don't have a patient account?
+            <button type="button" @click="authModal = 'signup'"
+                    class="font-semibold text-emerald-800 hover:text-emerald-900 ml-1 bg-transparent border-0 cursor-pointer p-0 text-xs">
+              Register as Patient
+            </button>
           </p>
         </div>
+      </div>
+    </div>
 
-        <div>
-          <div class="font-mono font-bold" style="font-size:1.1875rem;color:#DCFCE7;margin-bottom:0.5rem;">02. Database Triggers</div>
-          <p style="font-size:0.875rem;line-height:1.6;color:rgba(255,255,255,0.85);">
-            Reference intervals are evaluated directly in MySQL. Biomarkers falling outside normal boundaries are systematically tagged Low or High.
+    {# ── SIGN UP CARD ── #}
+    <div x-show="authModal === 'signup'"
+         x-cloak
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="relative w-full max-w-2xl z-10"
+         x-data="{
+           showPw: false,
+           showConfirm: false,
+           get hasLen() { return modalSignupPassword.length >= 8; },
+           get hasUpper() { return /[A-Z]/.test(modalSignupPassword); },
+           get hasLower() { return /[a-z]/.test(modalSignupPassword); },
+           get hasDigit() { return /[0-9]/.test(modalSignupPassword); },
+           get hasSpecial() { return /[@$!%*?&#^()_\-+=]/.test(modalSignupPassword); }
+         }">
+
+      {# Close Button #}
+      <button type="button" @click="closeAuth()"
+              class="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-200 text-slate-500 hover:text-slate-800 cursor-pointer z-20 focus:outline-none">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      {# Brand Header #}
+      <div class="text-center mb-3">
+        <a href="{{ url_for('auth.landing') }}" class="inline-flex items-center gap-2 text-white no-underline">
+          <div class="w-8 h-8 rounded-lg bg-white/15 border border-white/25 flex items-center justify-center shadow-xs">
+            <i data-lucide="flask-conical" class="text-white w-4 h-4"></i>
+          </div>
+          <span class="font-display text-xl font-bold tracking-tight text-white">MedLab</span>
+        </a>
+      </div>
+
+      {# Card #}
+      <div class="bg-white rounded-xl border border-slate-200 shadow-2xl p-5 sm:p-6 max-h-[85vh] overflow-y-auto">
+        <div class="mb-4">
+          <h2 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Create Patient Account</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Book diagnostic tests, request home phlebotomy, and receive verified digital reports</p>
+        </div>
+
+        {# Error Banner #}
+        <div x-show="modalSignupError" x-cloak class="p-3 mb-4 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 font-medium leading-relaxed" x-text="modalSignupError"></div>
+
+        <form @submit.prevent="submitModalSignup()">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            {# Full Name #}
+            <div class="form-group mb-0">
+              <label class="form-label text-xs font-semibold mb-1" for="modal_signup_name">Full Legal Name</label>
+              <input type="text" x-model="modalSignupName" id="modal_signup_name"
+                     class="form-control h-10 text-sm" placeholder="e.g. Tariq Mehmood" required>
+            </div>
+
+            {# Phone #}
+            <div class="form-group mb-0">
+              <label class="form-label text-xs font-semibold mb-1" for="modal_signup_phone">Phone Number (Pakistan)</label>
+              <input type="tel" x-model="modalSignupPhone" id="modal_signup_phone"
+                     class="form-control h-10 text-sm" placeholder="+92 300 1234567" required>
+            </div>
+
+            {# Email Full Width #}
+            <div class="form-group sm:col-span-2 mb-0">
+              <label class="form-label text-xs font-semibold mb-1" for="modal_signup_email">Email Address</label>
+              <input type="email" x-model="modalSignupEmail" id="modal_signup_email"
+                     class="form-control h-10 text-sm" placeholder="name@example.com"
+                     autocomplete="email" required>
+            </div>
+
+            {# Password #}
+            <div class="form-group mb-0">
+              <label class="form-label text-xs font-semibold mb-1" for="modal_signup_password">Password</label>
+              <div class="relative">
+                <input :type="showPw ? 'text' : 'password'" x-model="modalSignupPassword" id="modal_signup_password"
+                       class="form-control h-10 text-sm pr-14"
+                       placeholder="••••••••" autocomplete="new-password" required>
+                <button type="button" @click="showPw = !showPw"
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600 px-1 py-0.5 border-none bg-transparent cursor-pointer">
+                  <span x-show="!showPw">Show</span>
+                  <span x-show="showPw">Hide</span>
+                </button>
+              </div>
+            </div>
+
+            {# Confirm Password #}
+            <div class="form-group mb-0">
+              <label class="form-label text-xs font-semibold mb-1" for="modal_signup_confirm">Confirm Password</label>
+              <div class="relative">
+                <input :type="showConfirm ? 'text' : 'password'" x-model="modalSignupConfirm" id="modal_signup_confirm"
+                       class="form-control h-10 text-sm pr-14"
+                       placeholder="••••••••" autocomplete="new-password" required>
+                <button type="button" @click="showConfirm = !showConfirm"
+                        class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600 px-1 py-0.5 border-none bg-transparent cursor-pointer">
+                  <span x-show="!showConfirm">Show</span>
+                  <span x-show="showConfirm">Hide</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {# Password Strength Chips #}
+          <div class="flex flex-wrap items-center gap-1.5 mb-4">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold transition-colors"
+                  :class="hasLen ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-500 border border-slate-200'">
+              <i data-lucide="check" style="width:11px;height:11px;" x-show="hasLen"></i> 8+ chars
+            </span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold transition-colors"
+                  :class="hasUpper ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-500 border border-slate-200'">
+              <i data-lucide="check" style="width:11px;height:11px;" x-show="hasUpper"></i> A-Z
+            </span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold transition-colors"
+                  :class="hasLower ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-500 border border-slate-200'">
+              <i data-lucide="check" style="width:11px;height:11px;" x-show="hasLower"></i> a-z
+            </span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold transition-colors"
+                  :class="hasDigit ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-500 border border-slate-200'">
+              <i data-lucide="check" style="width:11px;height:11px;" x-show="hasDigit"></i> 0-9
+            </span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold transition-colors"
+                  :class="hasSpecial ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-500 border border-slate-200'">
+              <i data-lucide="check" style="width:11px;height:11px;" x-show="hasSpecial"></i> Special
+            </span>
+          </div>
+
+          <button type="submit" :disabled="modalSignupLoading" class="btn btn-primary w-full h-10 text-sm font-semibold justify-center">
+            <span x-show="!modalSignupLoading">Create Patient Account</span>
+            <span x-show="modalSignupLoading" x-cloak class="inline-flex items-center gap-2">
+              <span class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              Creating Account...
+            </span>
+          </button>
+        </form>
+
+        {# Divider #}
+        <div class="flex items-center my-3">
+          <div class="flex-1 h-px bg-slate-200"></div>
+          <span class="px-3 text-2xs uppercase tracking-wider font-semibold text-slate-400">or</span>
+          <div class="flex-1 h-px bg-slate-200"></div>
+        </div>
+
+        {# Google OAuth #}
+        <button type="button"
+                data-action="google-signin"
+                @click="triggerGoogleSignIn($event)"
+                class="btn btn-google w-full h-10 text-xs font-medium flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer bg-white">
+          <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+          </svg>
+          <span class="text-slate-700 font-semibold">Continue with Google</span>
+        </button>
+
+        {# Switch to Log In #}
+        <div class="text-center mt-3 pt-3 border-t border-slate-100">
+          <p class="text-xs text-slate-500">
+            Already have an account?
+            <button type="button" @click="authModal = 'login'"
+                    class="font-semibold text-emerald-800 hover:text-emerald-900 ml-1 bg-transparent border-0 cursor-pointer p-0 text-xs">
+              Sign In
+            </button>
           </p>
         </div>
-
-        <div>
-          <div class="font-mono font-bold" style="font-size:1.1875rem;color:#DCFCE7;margin-bottom:0.5rem;">03. Tamper-Proof Audit</div>
-          <p style="font-size:0.875rem;line-height:1.6;color:rgba(255,255,255,0.85);">
-            Every status transition and result amendment is permanently stamped into an append-only JSON audit trail.
-          </p>
-        </div>
-
-        <div>
-          <div class="font-mono font-bold" style="font-size:1.1875rem;color:#DCFCE7;margin-bottom:0.5rem;">04. Real-time Tracker</div>
-          <p style="font-size:0.875rem;line-height:1.6;color:rgba(255,255,255,0.85);">
-            Watch your specimen move from booking to collection, laboratory analysis, and pathologist sign-off in real time.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-{# ── Frequently Asked Questions (FAQ) ── #}
-<section id="faq" style="padding:4.5rem 5vw;background:var(--bg-page);border-bottom:1px solid var(--card-border);">
-  <div style="max-width:860px;margin:0 auto;">
-    <div style="text-align:center;margin-bottom:2.5rem;">
-      <span class="pill-tag" style="margin-bottom:0.75rem;">Support & Guidance</span>
-      <h2 style="font-size:clamp(1.875rem, 3vw, 2.5rem);letter-spacing:-0.025em;">Frequently Asked Questions</h2>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:1rem;" x-data="{ openIdx: 0 }">
-      {# Q1 #}
-      <div class="card" style="padding:1.25rem 1.75rem;cursor:pointer;" @click="openIdx = (openIdx === 0 ? -1 : 0)">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <h4 style="font-size:1rem;font-weight:700;color:var(--navy-ink);">Do I need to fast before my blood test?</h4>
-          <i data-lucide="chevron-down" style="width:18px;height:18px;color:var(--navy-muted);transition:var(--transition);"
-             :style="openIdx === 0 ? 'transform:rotate(180deg)' : ''"></i>
-        </div>
-        <p x-show="openIdx === 0" style="margin-top:0.75rem;font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          Tests like Fasting Blood Sugar, Lipid Profiles, and comprehensive wellness panels require 8 to 12 hours of overnight fasting. You may drink plain water. Each test in our catalog clearly indicates fasting requirements.
-        </p>
-      </div>
-
-      {# Q2 #}
-      <div class="card" style="padding:1.25rem 1.75rem;cursor:pointer;" @click="openIdx = (openIdx === 1 ? -1 : 1)">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <h4 style="font-size:1rem;font-weight:700;color:var(--navy-ink);">How soon will my digital diagnostic report be available?</h4>
-          <i data-lucide="chevron-down" style="width:18px;height:18px;color:var(--navy-muted);transition:var(--transition);"
-             :style="openIdx === 1 ? 'transform:rotate(180deg)' : ''"></i>
-        </div>
-        <p x-show="openIdx === 1" style="margin-top:0.75rem;font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          Most routine hematology and biochemistry panels (CBC, LFT, RFT) are released within 4 to 12 hours. As soon as our Senior Pathologist signs off on the results, you will receive an in-app notification and your downloadable PDF will unlock.
-        </p>
-      </div>
-
-      {# Q3 #}
-      <div class="card" style="padding:1.25rem 1.75rem;cursor:pointer;" @click="openIdx = (openIdx === 2 ? -1 : 2)">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <h4 style="font-size:1rem;font-weight:700;color:var(--navy-ink);">How are abnormal biomarker results reviewed?</h4>
-          <i data-lucide="chevron-down" style="width:18px;height:18px;color:var(--navy-muted);transition:var(--transition);"
-             :style="openIdx === 2 ? 'transform:rotate(180deg)' : ''"></i>
-        </div>
-        <p x-show="openIdx === 2" style="margin-top:0.75rem;font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          Our system automatically flags values that fall outside standard reference intervals as LOW or HIGH. The pathologist independently reviews flagged samples and may order a re-run from the archived primary tube if clinical confirmation is warranted.
-        </p>
-      </div>
-
-      {# Q4 #}
-      <div class="card" style="padding:1.25rem 1.75rem;cursor:pointer;" @click="openIdx = (openIdx === 3 ? -1 : 3)">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <h4 style="font-size:1rem;font-weight:700;color:var(--navy-ink);">How do I book a home sample collection?</h4>
-          <i data-lucide="chevron-down" style="width:18px;height:18px;color:var(--navy-muted);transition:var(--transition);"
-             :style="openIdx === 3 ? 'transform:rotate(180deg)' : ''"></i>
-        </div>
-        <p x-show="openIdx === 3" style="margin-top:0.75rem;font-size:0.875rem;color:var(--navy-muted);line-height:1.6;">
-          Simply register or log in, click "Book a Test", select "Home Visit" as your collection method, and enter your street address and preferred time slot. A phlebotomist will be dispatched accordingly.
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
-
-{# ── Rich Clinical Footer ── #}
-<footer style="background:#0B132B;color:#FFFFFF;padding:4rem 5vw 2.5rem;border-top:1px solid rgba(255,255,255,0.08);">
-  <div style="max-width:1160px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:3rem;margin-bottom:3rem;">
-    <div>
-      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
-        <div style="width:36px;height:36px;border-radius:8px;background:var(--primary);display:grid;place-items:center;">
-          <i data-lucide="flask-conical" style="color:#FFFFFF;width:20px;height:20px;"></i>
-        </div>
-        <span style="font-family:var(--font-display);font-size:1.25rem;font-weight:700;letter-spacing:-0.02em;">MedLab</span>
-      </div>
-      <p style="font-size:0.875rem;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:1.5rem;">
-        MedLab Diagnostics operates advanced automated pathology testing with integrated quality control and certified home phlebotomy.
-      </p>
-      <div style="font-size:0.75rem;color:rgba(255,255,255,0.4);">
-        ISO 15189:2022 Medical Laboratory Standards
       </div>
     </div>
 
-    <div>
-      <h4 style="font-size:0.875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#FFFFFF;margin-bottom:1.25rem;">
-        Laboratory Divisions
-      </h4>
-      <div style="display:flex;flex-direction:column;gap:0.625rem;font-size:0.875rem;color:rgba(255,255,255,0.6);">
-        <span>Clinical Hematology</span>
-        <span>Diagnostic Biochemistry</span>
-        <span>Endocrinology &amp; Thyroid</span>
-        <span>Microbiology &amp; Serology</span>
-        <span>Immunology &amp; Infectious Disease</span>
-      </div>
-    </div>
-
-    <div>
-      <h4 style="font-size:0.875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#FFFFFF;margin-bottom:1.25rem;">
-        Patient Navigation
-      </h4>
-      <div style="display:flex;flex-direction:column;gap:0.625rem;font-size:0.875rem;">
-        <a href="{{ url_for('auth.login') }}" style="color:rgba(255,255,255,0.6);">Patient Portal Login</a>
-        <a href="{{ url_for('auth.signup') }}" style="color:rgba(255,255,255,0.6);">Register New Account</a>
-        <a href="{{ url_for('auth.forgot_password') }}" style="color:rgba(255,255,255,0.6);">Recover Password</a>
-        <a href="#catalog" style="color:rgba(255,255,255,0.6);">Test Price Index</a>
-        <a href="#packages" style="color:rgba(255,255,255,0.6);">Health Checkup Packages</a>
-      </div>
-    </div>
-
-    <div>
-      <h4 style="font-size:0.875rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#FFFFFF;margin-bottom:1.25rem;">
-        Emergency Phlebotomy
-      </h4>
-      <p style="font-size:0.875rem;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:1rem;">
-        24/7 specimen drop-off and emergency phlebotomy hotline:
-      </p>
-      <div class="font-mono font-bold" style="font-size:1.125rem;color:#DCFCE7;margin-bottom:0.5rem;">
-        +92 (300) 123-4567
-      </div>
-      <div style="font-size:0.8125rem;color:rgba(255,255,255,0.5);">
-        support@medlab.pk • Clinical Plaza, Main Campus
-      </div>
-    </div>
   </div>
 
-  <div style="max-width:1160px;margin:0 auto;padding-top:2rem;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;font-size:0.75rem;color:rgba(255,255,255,0.4);">
-    <div>© 2026 MedLab Diagnostics. All rights reserved. University Database Systems Project.</div>
-    <div style="display:flex;gap:1.5rem;">
-      <a href="#" style="color:rgba(255,255,255,0.4);">Privacy Notice</a>
-      <a href="#" style="color:rgba(255,255,255,0.4);">Diagnostic Policies</a>
-      <a href="#" style="color:rgba(255,255,255,0.4);">Laboratory Standards</a>
-    </div>
-  </div>
-</footer>
-{% endblock %}
+  {# Supabase for OAuth #}
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
+  <script>
+    window.MEDLAB_SUPABASE_CONFIG = {
+      url: {{ supabase_url | tojson }},
+      key: {{ supabase_publishable_key | tojson }},
+      callbackUrl: {{ url_for('supabase_auth.callback', _external=True) | tojson }},
+      csrfToken: {{ csrf_token() | tojson }}
+    };
+
+    async function triggerGoogleSignIn(event) {
+      if (event) event.preventDefault();
+      if (typeof window.medlabGoogleSignIn === 'function') {
+        return window.medlabGoogleSignIn(event ? event.currentTarget : null);
+      }
+      try {
+        if (!window.supabase || !window.MEDLAB_SUPABASE_CONFIG) {
+          alert('Google Sign-In is initializing. Please try again in a moment.');
+          return;
+        }
+        const { url, key, callbackUrl } = window.MEDLAB_SUPABASE_CONFIG;
+        if (!url || !key) {
+          alert('Google sign-in is not configured yet. Please contact support.');
+          return;
+        }
+        const client = window.supabase.createClient(url, key, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: false,
+            detectSessionInUrl: true,
+            flowType: 'pkce'
+          }
+        });
+        const redirectTarget = callbackUrl || (window.location.origin + '/auth/callback');
+        const { data, error } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectTarget
+          }
+        });
+        if (error) {
+          console.error('Supabase OAuth error:', error);
+          alert('Unable to initialize Google Sign-In: ' + error.message);
+        }
+      } catch (err) {
+        console.error('Google Sign-in exception:', err);
+        alert('Google Sign-In failed to start. Please try again.');
+      }
+    }
+  </script>
+  <script src="{{ url_for('static', filename='js/supabase-auth.js') }}"></script>
+
+  <script>
+    function refreshIcons() {
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    }
+    document.addEventListener('DOMContentLoaded', refreshIcons);
+    document.addEventListener('alpine:initialized', refreshIcons);
+  </script>
+</body>
+</html>

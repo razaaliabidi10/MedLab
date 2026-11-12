@@ -11,6 +11,7 @@ Notifications system for MedLab:
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from flask_login import login_required, current_user
+from extensions import limiter, csrf
 from db import query_db, execute_db
 
 notifications_bp = Blueprint("notifications", __name__, url_prefix="/notifications")
@@ -22,6 +23,21 @@ def create_notification(user_id, notif_type, title, message, booking_id=None):
         INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
         VALUES (%s, %s, %s, %s, %s, 0)
     """, (user_id, notif_type, title, message, booking_id))
+
+
+def notify_roles(role_ids, notif_type, title, message, booking_id=None):
+    """System helper to insert an in-app notification to all active users belonging to specified roles."""
+    if isinstance(role_ids, int):
+        role_ids = [role_ids]
+    if not role_ids:
+        return
+    placeholders = ",".join(["%s"] * len(role_ids))
+    users = query_db(f"SELECT user_id FROM users WHERE role_id IN ({placeholders}) AND is_active = 1", tuple(role_ids))
+    for u in users:
+        execute_db("""
+            INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
+            VALUES (%s, %s, %s, %s, %s, 0)
+        """, (u["user_id"], notif_type, title, message, booking_id))
 
 
 @notifications_bp.route("", strict_slashes=False)
@@ -68,6 +84,12 @@ def index():
     )
     all_total = all_row["c"] if all_row else 0
 
+    # Once opened, mark all unread notifications as read so topbar badge and unread count clear
+    execute_db(
+        "UPDATE notifications SET is_read = 1 WHERE user_id = %s AND is_read = 0",
+        (current_user.id,)
+    )
+
     return render_template(
         "notifications/index.html",
         notifications=notifications,
@@ -78,6 +100,65 @@ def index():
         unread_total=unread_total,
         all_total=all_total
     )
+
+
+@notifications_bp.route("/<int:notification_id>/open")
+@login_required
+def open_target(notification_id):
+    """
+    Directly opens the underlying issue/item referred to by the notification:
+      - Marks notification as read
+      - Redirects to role-specific target (reanalysis, verification, booking, or report)
+    """
+    notif = query_db(
+        "SELECT * FROM notifications WHERE notification_id = %s",
+        (notification_id,), one=True
+    )
+    if not notif:
+        abort(404)
+
+    if notif["user_id"] != current_user.id:
+        abort(403)
+
+    if not notif["is_read"]:
+        execute_db(
+            "UPDATE notifications SET is_read = 1 WHERE notification_id = %s",
+            (notification_id,)
+        )
+
+    if notif.get("booking_id"):
+        booking = query_db(
+            "SELECT * FROM bookings WHERE booking_id = %s",
+            (notif["booking_id"],), one=True
+        )
+        if booking:
+            # 1. Technician: redirect directly to booking management & result entry
+            if current_user.role_id == 3:
+                return redirect(url_for("technician.manage_booking", booking_id=booking["booking_id"]))
+
+            # 2. Pathologist: redirect to verification review if awaiting verification, otherwise dashboard
+            if current_user.role_id == 6:
+                if booking["booking_status"] == "Pending_Verification":
+                    return redirect(url_for("pathologist.review", booking_id=booking["booking_id"]))
+                return redirect(url_for("pathologist.dashboard"))
+
+            # 3. Receptionist: redirect to receptionist booking detail
+            if current_user.role_id == 2:
+                return redirect(url_for("receptionist.booking_detail", booking_id=booking["booking_id"]))
+
+            # 4. Patient: redirect to view report if released, otherwise booking detail
+            if current_user.role_id == 4:
+                if booking["booking_status"] == "Completed" and booking.get("released_at"):
+                    return redirect(url_for("patient.view_report", booking_id=booking["booking_id"]))
+                return redirect(url_for("patient.booking_detail", booking_id=booking["booking_id"]))
+
+            # 5. Admin: redirect to view report if completed/released, otherwise notification detail
+            if current_user.role_id == 1:
+                if booking["booking_status"] == "Completed" and booking.get("released_at"):
+                    return redirect(url_for("patient.view_report", booking_id=booking["booking_id"]))
+                return redirect(url_for("notifications.detail", notification_id=notification_id))
+
+    return redirect(url_for("notifications.detail", notification_id=notification_id))
 
 
 @notifications_bp.route("/<int:notification_id>")
@@ -196,15 +277,27 @@ def detail(notification_id):
                 })
 
             # Role-specific "Go to booking" target
-            role_map = {
-                1: url_for("admin.dashboard"),
-                2: url_for("receptionist.booking_detail", booking_id=booking["booking_id"]),
-                3: url_for("technician.dashboard"),
-                4: url_for("patient.booking_detail", booking_id=booking["booking_id"]),
-                5: url_for("collector.dashboard"),
-                6: url_for("pathologist.dashboard"),
-            }
-            role_booking_url = role_map.get(current_user.role_id, url_for("patient.dashboard"))
+            if current_user.role_id == 3: # Technician
+                role_booking_url = url_for("technician.manage_booking", booking_id=booking["booking_id"])
+            elif current_user.role_id == 6: # Pathologist
+                if booking["booking_status"] == "Pending_Verification":
+                    role_booking_url = url_for("pathologist.review", booking_id=booking["booking_id"])
+                else:
+                    role_booking_url = url_for("pathologist.dashboard")
+            elif current_user.role_id == 2: # Receptionist
+                role_booking_url = url_for("receptionist.booking_detail", booking_id=booking["booking_id"])
+            elif current_user.role_id == 4: # Patient
+                if booking["booking_status"] == "Completed" and booking.get("released_at"):
+                    role_booking_url = url_for("patient.view_report", booking_id=booking["booking_id"])
+                else:
+                    role_booking_url = url_for("patient.booking_detail", booking_id=booking["booking_id"])
+            elif current_user.role_id == 1: # Admin
+                if booking["booking_status"] == "Completed" and booking.get("released_at"):
+                    role_booking_url = url_for("patient.view_report", booking_id=booking["booking_id"])
+                else:
+                    role_booking_url = url_for("admin.dashboard")
+            else:
+                role_booking_url = url_for("patient.dashboard")
 
     return render_template(
         "notifications/detail.html",
@@ -227,8 +320,21 @@ def mark_all_read():
     return redirect(request.referrer or url_for("notifications.index"))
 
 
+@notifications_bp.route("/api/mark-read", methods=["POST"])
+@login_required
+@csrf.exempt
+def api_mark_read():
+    """AJAX endpoint invoked when the user opens the notification dropdown/panel to clear unread badge."""
+    execute_db(
+        "UPDATE notifications SET is_read = 1 WHERE user_id = %s AND is_read = 0",
+        (current_user.id,)
+    )
+    return jsonify({"success": True, "unread_count": 0})
+
+
 @notifications_bp.route("/api/unread-count")
 @login_required
+@limiter.limit("30 per minute")
 def api_unread_count():
     """JSON API polled every 10 seconds for real-time notification badge and toast triggers."""
     row = query_db(

@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}Walk-in Booking — Reception Desk{% endblock %}
+{% block page_title %}New Walk-in Booking{% endblock %}
+{% block page_subtitle %}Register walk-in appointment and select diagnostic tests{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('receptionist.walk_in') }}"
+      x-data="{
+        patientMode: 'existing',
+        selected: [],
+        total: 0,
+        searchQuery: '',
+        activeCategory: 'ALL',
+        apptDate: '{{ today_karachi }}',
+        selectedSlot: '08:00 AM - 10:00 AM',
+        slots: {
+          '08:00 AM - 10:00 AM': { available: true, status_label: 'Available' },
+          '10:00 AM - 12:00 PM': { available: true, status_label: 'Available' },
+          '02:00 PM - 04:00 PM': { available: true, status_label: 'Available' },
+          '04:00 PM - 06:00 PM': { available: true, status_label: 'Available' }
+        },
+        async fetchSlotAvailability() {
+          try {
+            const res = await fetch(`{{ url_for('patient.slot_availability') }}?date=${this.apptDate}`);
+            if (res.ok) {
+              this.slots = await res.json();
+              if (this.slots[this.selectedSlot] && !this.slots[this.selectedSlot].available) {
+                const firstAvail = Object.keys(this.slots).find(s => this.slots[s].available);
+                if (firstAvail) this.selectedSlot = firstAvail;
+              }
+            }
+          } catch(e) { console.error('Failed to fetch slot availability', e); }
+        },
+        init() {
+          this.fetchSlotAvailability();
+        }
+      }">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+  <input type="hidden" name="patient_mode" :value="patientMode">
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+    
+    {# ── Left 2 Cols: Customer Registration & Compact Test Selection ── #}
+    <div class="lg:col-span-2">
+
+      {# Customer Selection or Registration #}
+      <div class="card mb-4" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div class="card-header flex items-center justify-between" style="padding:0.75rem 1.25rem;">
+          <div class="card-title" style="margin:0;">Customer Details</div>
+          <div class="flex gap-2">
+            <button type="button" @click="patientMode = 'existing'"
+                    class="btn btn-sm"
+                    :style="patientMode === 'existing' ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : 'background:#fff;color:var(--slate-600);border:1px solid var(--card-border);'">
+              <i data-lucide="user-check" style="width:13px;height:13px;"></i> Existing Customer
+            </button>
+            <button type="button" @click="patientMode = 'new'"
+                    class="btn btn-sm"
+                    :style="patientMode === 'new' ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : 'background:#fff;color:var(--slate-600);border:1px solid var(--card-border);'">
+              <i data-lucide="user-plus" style="width:13px;height:13px;"></i> + New Customer
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body" style="padding:1rem 1.25rem;">
+          {# Existing Customer Mode #}
+          <div x-show="patientMode === 'existing'">
+            <label class="form-label text-xs font-semibold mb-1">Select Existing Patient</label>
+            <select name="patient_id" class="form-control text-xs" :required="patientMode === 'existing'">
+              <option value="">-- Choose Patient --</option>
+              {% for p in patients %}
+              <option value="{{ p.user_id }}">{{ p.full_name }} ({{ p.phone }}{% if p.email %} · {{ p.email }}{% endif %})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          {# Inline New Customer Registration #}
+          <div x-show="patientMode === 'new'" style="display:none;" :style="patientMode === 'new' ? 'display:block;' : 'display:none;'">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="form-group mb-2">
+                <label class="form-label text-xs font-semibold mb-1">Full Name <span style="color:var(--flag-red);">*</span></label>
+                <input type="text" name="new_full_name" class="form-control text-xs" placeholder="e.g. Ayesha Khan" :required="patientMode === 'new'">
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label text-xs font-semibold mb-1">Phone Number <span style="color:var(--flag-red);">*</span></label>
+                <input type="text" name="new_phone" class="form-control text-xs" placeholder="e.g. +923001234567" :required="patientMode === 'new'">
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label text-xs font-semibold mb-1">Email Address <span style="font-size:0.65rem;color:var(--slate-400);">(Optional)</span></label>
+                <input type="email" name="new_email" class="form-control text-xs" placeholder="e.g. customer@example.com">
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label text-xs font-semibold mb-1">Gender</label>
+                <select name="new_gender" class="form-control text-xs">
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label text-xs font-semibold mb-1">Date of Birth</label>
+                <input type="date" name="new_dob" class="form-control text-xs" max="{{ today_karachi }}">
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label text-xs font-semibold mb-1">Residential Address</label>
+                <input type="text" name="new_address" class="form-control text-xs" placeholder="City, Area, House #">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# Compact Test Selection #}
+      <div class="card mb-4" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div class="card-header flex items-center justify-between" style="padding:0.75rem 1.25rem;flex-wrap:wrap;gap:0.75rem;">
+          <div class="flex items-center gap-2">
+            <div class="card-title" style="margin:0;">Select Diagnostic Tests</div>
+            <span class="badge badge-green" x-text="selected.length + ' selected'">0 selected</span>
+          </div>
+
+          <div style="position:relative;min-width:220px;flex:1;max-width:300px;">
+            <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--slate-400);"></i>
+            <input type="text" x-model="searchQuery" placeholder="Search test name/code..."
+                   class="form-control" style="padding-left:1.875rem;height:32px;font-size:0.8rem;">
+          </div>
+        </div>
+
+        {# Category Pills #}
+        <div style="display:flex;gap:0.375rem;padding:0.5rem 1.25rem;border-bottom:1px solid var(--card-border);background:#FBFDFB;overflow-x:auto;">
+          <button type="button" @click="activeCategory = 'ALL'"
+                  class="btn btn-sm"
+                  :style="activeCategory === 'ALL' ? 'background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;padding:0.2rem 0.5rem;' : 'background:#fff;color:var(--slate-600);border:1px solid var(--card-border);padding:0.2rem 0.5rem;font-size:0.72rem;'">
+            All Tests
+          </button>
+          {% set categories = [] %}
+          {% for t in tests %}
+            {% if t.category_name not in categories %}
+              {% set _ = categories.append(t.category_name) %}
+            {% endif %}
+          {% endfor %}
+          {% for cat in categories %}
+          <button type="button" @click="activeCategory = '{{ cat }}'"
+                  class="btn btn-sm"
+                  :style="activeCategory === '{{ cat }}' ? 'background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;padding:0.2rem 0.5rem;' : 'background:#fff;color:var(--slate-600);border:1px solid var(--card-border);padding:0.2rem 0.5rem;font-size:0.72rem;'">
+            {{ cat }}
+          </button>
+          {% endfor %}
+        </div>
+
+        {# Scrollable Compact Test List #}
+        <div class="card-body" style="padding:0.625rem;max-height:440px;overflow-y:auto;">
+          <div style="display:flex;flex-direction:column;gap:0.375rem;">
+            {% for test in tests %}
+            <div x-show="(activeCategory === 'ALL' || activeCategory === '{{ test.category_name }}') && ('{{ test.test_name|lower }} {{ test.test_code|lower }}'.includes(searchQuery.toLowerCase().trim()))"
+                 style="margin:0;">
+              <label style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.75rem;border:1px solid var(--card-border);border-radius:6px;transition:all .15s;{% if not test.is_active %}opacity:0.55;background:#F8FAFC;cursor:not-allowed;{% else %}cursor:pointer;background:#fff;{% endif %}"
+                     {% if test.is_active %}:style="selected.includes({{ test.test_id }}) ? 'border-color:var(--primary);background:var(--primary-tint);' : 'border-color:var(--card-border);background:#fff;'"{% endif %}>
+                <input type="checkbox" name="test_ids" value="{{ test.test_id }}"
+                       style="width:16px;height:16px;accent-color:var(--primary);flex-shrink:0;"
+                       {% if not test.is_active %}
+                       disabled title="This test is currently unavailable"
+                       {% else %}
+                       @change="
+                         if($event.target.checked) {
+                           selected.push({{ test.test_id }});
+                           total += {{ test.price }};
+                         } else {
+                           selected = selected.filter(id => id !== {{ test.test_id }});
+                           total -= {{ test.price }};
+                         }
+                       "
+                       {% endif %}>
+                <div style="flex:1;min-width:0;">
+                  <div class="flex items-center gap-2">
+                    <span style="font-weight:600;font-size:0.8125rem;color:var(--slate-900);">{{ test.test_name }}</span>
+                    <span class="font-mono" style="font-size:0.6875rem;color:var(--slate-400);">({{ test.test_code }})</span>
+                    {% if not test.is_active %}
+                    <span class="badge badge-red" style="font-size:0.6rem;padding:0.1rem 0.35rem;">Unavailable</span>
+                    {% endif %}
+                  </div>
+                  <div style="font-size:0.7rem;color:var(--slate-500);margin-top:0.125rem;">
+                    {{ test.category_name }} · {{ test.sample_type }} · {{ test.turnaround_hours }}h TAT
+                  </div>
+                </div>
+                <div class="font-mono text-right" style="flex-shrink:0;font-size:0.84rem;font-weight:700;color:var(--primary);">
+                  PKR {{ "%.0f"|format(test.price) }}
+                </div>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Right Col: Appointment Slot & Booking Summary ── #}
+    <div class="lg:col-span-1">
+      <div class="card p-5 sticky top-20" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <h3 class="font-display font-bold text-base text-slate-900 mb-3">Schedule Slot</h3>
+        
+        {# Appointment Date #}
+        <div class="form-group mb-3">
+          <label class="form-label text-xs font-semibold mb-1">Appointment Date (PKT)</label>
+          <input type="date" name="appointment_date" class="form-control text-xs" 
+                 x-model="apptDate" min="{{ today_karachi }}"
+                 @change="fetchSlotAvailability()" required>
+        </div>
+
+        {# Appointment Slot with Availability Tag on the Right #}
+        <div class="form-group mb-4">
+          <label class="form-label text-xs font-semibold mb-1">Time Slot</label>
+          <input type="hidden" name="appointment_slot" :value="selectedSlot">
+
+          <div style="display:flex;flex-direction:column;gap:0.375rem;">
+            {% set slot_options = [
+              ('08:00 AM - 10:00 AM', '08:00 AM – 10:00 AM'),
+              ('10:00 AM - 12:00 PM', '10:00 AM – 12:00 PM'),
+              ('02:00 PM - 04:00 PM', '02:00 PM – 04:00 PM'),
+              ('04:00 PM - 06:00 PM', '04:00 PM – 06:00 PM')
+            ] %}
+            {% for slot_val, slot_txt in slot_options %}
+            <div @click="if (slots['{{ slot_val }}']?.available) selectedSlot = '{{ slot_val }}'"
+                 style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.625rem;border-radius:6px;border:1px solid var(--card-border);transition:all .15s;"
+                 :style="!slots['{{ slot_val }}']?.available
+                          ? 'opacity:0.5;background:#F8FAFC;cursor:not-allowed;'
+                          : (selectedSlot === '{{ slot_val }}'
+                              ? 'border-color:var(--primary);background:var(--primary-tint);cursor:pointer;'
+                              : 'background:#fff;cursor:pointer;')">
+              <div class="flex items-center gap-2">
+                <div style="width:12px;height:12px;border-radius:50%;border:2px solid;"
+                     :style="selectedSlot === '{{ slot_val }}' && slots['{{ slot_val }}']?.available ? 'border-color:var(--primary);background:var(--primary);' : 'border-color:var(--slate-300);background:#fff;'"></div>
+                <span style="font-size:0.75rem;font-weight:500;color:var(--slate-800);">{{ slot_txt }}</span>
+              </div>
+
+              {# Right side availability badge: strictly Available / Unavailable without exposing counts #}
+              <template x-if="slots['{{ slot_val }}']?.available">
+                <span class="badge badge-green" style="font-size:0.625rem;padding:0.1rem 0.4rem;">Available</span>
+              </template>
+              <template x-if="!slots['{{ slot_val }}']?.available">
+                <span class="badge badge-red" style="font-size:0.625rem;padding:0.1rem 0.4rem;">Unavailable</span>
+              </template>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {# Total Summary #}
+        <div class="p-3 bg-[#F6FAF7] rounded-lg border border-slate-200 mb-4">
+          <div class="flex items-center justify-between text-xs text-slate-600 mb-1">
+            <span>Tests Selected:</span>
+            <span class="font-bold text-slate-900" x-text="selected.length">0</span>
+          </div>
+          <div class="flex items-center justify-between text-sm font-bold text-slate-900 pt-2 border-t border-slate-200">
+            <span>Total Amount:</span>
+            <span class="font-mono text-emerald-800" x-text="'PKR ' + total.toLocaleString()">PKR 0</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full text-xs font-semibold py-2.5 justify-center"
+                :disabled="selected.length === 0 || !slots[selectedSlot]?.available"
+                :class="selected.length === 0 || !slots[selectedSlot]?.available ? 'opacity-50 cursor-not-allowed' : ''">
+          <i data-lucide="check-circle-2" style="width:14px;height:14px;"></i> Confirm Walk-in Booking
+        </button>
+      </div>
+    </div>
+
+  </div>
+</form>
+{% endblock %}

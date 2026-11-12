@@ -68,7 +68,7 @@ class Phase3NotificationsTests(unittest.TestCase):
     # 2. DASHBOARD PANEL ON ALL 6 ROLES
     # -------------------------------------------------------------------------
     def test_03_dashboard_panel_on_all_six_roles(self):
-        """Verify Recent Notifications panel with unread indicator renders on all 6 dashboards."""
+        """Verify Recent Notifications panel is removed from all 6 dashboards, and topbar bell dropdown is present."""
         roles = [
             ("admin@medlab.pk", "Admin@8521!", "/admin/dashboard"),
             ("receptionist@medlab.pk", "Recp@8521!", "/receptionist/dashboard"),
@@ -87,8 +87,11 @@ class Phase3NotificationsTests(unittest.TestCase):
             self.assertEqual(dash_res.status_code, 200, f"Dashboard failed for {dash_url}")
             html = dash_res.data.decode("utf-8")
 
-            self.assertIn("Recent Notifications", html, f"Dashboard {dash_url} must include Recent Notifications panel.")
-            self.assertIn("View All", html, f"Dashboard {dash_url} must include View All link.")
+            # Notification panel must be removed from dashboards
+            self.assertNotIn("_dashboard_panel.html", html)
+            # Bell dropdown must be present
+            self.assertIn("notification-dropdown", html, f"Dashboard {dash_url} must include bell notification-dropdown.")
+            self.assertIn("View all", html, f"Dashboard {dash_url} must include View all link.")
 
     # -------------------------------------------------------------------------
     # 3. DEDICATED /notifications PAGE

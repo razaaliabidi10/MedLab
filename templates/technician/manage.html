@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Manage Booking — {{ booking.booking_ref }}{% endblock %}
+{% block page_title %}Patient Process &amp; Sample Management{% endblock %}
+{% block page_subtitle %}Booking Reference: <span class="font-mono text-emerald-800 font-semibold">{{ booking.booking_ref }}</span>{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('technician.dashboard') }}" class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:0.375rem;">
+  <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back to Worklist
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start" style="min-width:0;">
+
+  {# ── Left 2 Cols: Pipeline & Test Items ── #}
+  <div class="lg:col-span-2" style="min-width:0;display:flex;flex-direction:column;gap:1.25rem;">
+
+    {# Pathologist Feedback / Reanalysis Alert #}
+    {% if booking.verification_comment %}
+    <div style="background:#FFFBEB;border:1px solid #FCD34D;border-left:4px solid #D97706;border-radius:8px;padding:1rem 1.25rem;display:flex;align-items:flex-start;gap:0.75rem;">
+      <i data-lucide="alert-triangle" style="width:20px;height:20px;color:#D97706;flex-shrink:0;margin-top:2px;"></i>
+      <div>
+        <div style="font-weight:700;font-size:0.875rem;color:#92400E;">Pathologist Revision / Reanalysis Instructions</div>
+        <div style="font-size:0.8125rem;color:#78350F;margin-top:0.25rem;line-height:1.5;">{{ booking.verification_comment }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Responsive Process Tracker Cards (Never overlaps) #}
+    <div class="card" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">
+      <div class="card-header" style="padding:0.875rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;border-bottom:1px solid var(--card-border);">
+        <div class="card-title" style="margin:0;font-size:0.875rem;font-weight:700;">Diagnostic Lifecycle Stage</div>
+        {% set status_badges = {
+          'Booked': 'badge-slate',
+          'Confirmed': 'badge-amber',
+          'Sample_Collected': 'badge-amber',
+          'In_Analysis': 'badge-blue',
+          'Pending_Verification': 'badge-purple',
+          'Completed': 'badge-green',
+          'Cancelled': 'badge-red'
+        } %}
+        <span class="badge {{ status_badges.get(booking.booking_status, 'badge-slate') }}">
+          {{ booking.booking_status | replace('_', ' ') }}
+        </span>
+      </div>
+      <div class="card-body" style="padding:1rem 1.25rem;">
+        {% set stages = [
+          ('Booked', 'Booked', 'Patient registered'),
+          ('Sample_Collected', 'Sample Collected', 'Specimen barcoded'),
+          ('In_Analysis', 'In Analysis', 'Biomarkers tested'),
+          ('Pending_Verification', 'Pathologist Review', 'Medical verification'),
+          ('Completed', 'Completed', 'Report released')
+        ] %}
+        {% set stage_order = {'Booked': 1, 'Confirmed': 1, 'Sample_Collected': 2, 'In_Analysis': 3, 'Pending_Verification': 4, 'Completed': 5} %}
+        {% set cur_step = stage_order.get(booking.booking_status, 1) %}
+
+        <div style="display:flex;flex-wrap:wrap;gap:0.625rem;align-items:stretch;">
+          {% for s_key, s_label, s_desc in stages %}
+            {% set s_idx = loop.index %}
+            <div style="flex:1 1 120px;min-width:110px;padding:0.75rem 0.5rem;border-radius:8px;border:1px solid var(--card-border);text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .15s;{% if s_idx < cur_step %}background:#F0FDF4;border-color:#BBF7D0;{% elif s_idx == cur_step %}background:#166534;border-color:#166534;color:#fff;box-shadow:0 2px 4px rgba(22,101,52,0.18);{% else %}background:#F8FAFC;border-color:#E2E8F0;opacity:0.85;{% endif %}">
+              <div style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;margin-bottom:0.35rem;shrink:0;{% if s_idx < cur_step %}background:#DCFCE7;color:#166534;{% elif s_idx == cur_step %}background:#fff;color:#166534;{% else %}background:#E2E8F0;color:#64748B;{% endif %}">
+                {% if s_idx < cur_step %}<i data-lucide="check" style="width:12px;height:12px;"></i>{% else %}{{ s_idx }}{% endif %}
+              </div>
+              <div style="font-size:0.75rem;font-weight:700;line-height:1.2;word-break:normal;hyphens:none;{% if s_idx == cur_step %}color:#fff;{% elif s_idx < cur_step %}color:#166534;{% else %}color:#334155;{% endif %}">
+                {{ s_label }}
+              </div>
+              <div style="font-size:0.6875rem;margin-top:0.2rem;line-height:1.2;{% if s_idx == cur_step %}color:rgba(255,255,255,0.85);{% elif s_idx < cur_step %}color:#15803D;{% else %}color:#94A3B8;{% endif %}">
+                {{ s_desc }}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {# Test Items & Specimen Status #}
+    <div class="card" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">
+      <div class="card-header flex items-center justify-between" style="padding:0.875rem 1.25rem;border-bottom:1px solid var(--card-border);">
+        <div class="card-title" style="margin:0;font-size:0.875rem;font-weight:700;">Prescribed Tests &amp; Specimen Items</div>
+        <span class="badge badge-slate">{{ items | length }} items</span>
+      </div>
+      <div class="table-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+        <table style="width:100%;min-width:760px;border-collapse:collapse;table-layout:auto;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--card-border);background:#F8FAFC;">
+              <th style="padding:0.75rem 1rem;text-align:left;font-size:0.75rem;min-width:180px;">Test Details</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-size:0.75rem;min-width:100px;">Specimen</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-size:0.75rem;min-width:140px;">Barcode ID</th>
+              <th style="padding:0.75rem 1rem;text-align:center;font-size:0.75rem;min-width:190px;">Download Barcode Image</th>
+              <th style="padding:0.75rem 1rem;text-align:left;font-size:0.75rem;min-width:130px;">Testing Status</th>
+              <th style="padding:0.75rem 1rem;text-align:right;font-size:0.75rem;min-width:150px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in items %}
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:0.875rem 1rem;vertical-align:middle;">
+                <div style="font-weight:600;font-size:0.85rem;color:var(--slate-900);">{{ it.test_name }}</div>
+                <div class="font-mono" style="font-size:0.72rem;color:var(--slate-400);margin-top:0.125rem;">{{ it.test_code }} · {{ it.turnaround_hours }}h TAT</div>
+              </td>
+              <td style="padding:0.875rem 1rem;vertical-align:middle;">
+                <span class="badge badge-slate" style="font-size:0.72rem;white-space:nowrap;">{{ it.sample_type }}</span>
+              </td>
+              <td style="padding:0.875rem 1rem;vertical-align:middle;">
+                {% if it.barcode_string %}
+                  <span class="font-mono font-bold" style="font-size:0.8125rem;color:var(--primary);display:block;">{{ it.barcode_string }}</span>
+                  <div style="font-size:0.6875rem;color:var(--slate-400);margin-top:0.125rem;">{{ it.collected_at }}</div>
+                {% else %}
+                  <span class="badge badge-amber" style="font-size:0.7rem;white-space:nowrap;">Awaiting Collection</span>
+                {% endif %}
+              </td>
+              <td style="padding:0.875rem 1rem;vertical-align:middle;text-align:center;">
+                {% if it.barcode_string %}
+                  <a href="{{ url_for('technician.download_barcode_image', barcode_string=it.barcode_string) }}" class="btn btn-outline btn-sm font-semibold" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.75rem;padding:0.3rem 0.65rem;" download="Barcode-{{ it.barcode_string }}.png">
+                    <i data-lucide="download" style="width:13px;height:13px;"></i> Download Barcode Image
+                  </a>
+                {% else %}
+                  <span style="font-size:0.72rem;color:var(--slate-400);">Pending Sample</span>
+                {% endif %}
+              </td>
+              <td style="padding:0.875rem 1rem;vertical-align:middle;">
+                {% if not it.barcode_string %}
+                  <span style="font-size:0.75rem;color:var(--slate-400);white-space:nowrap;">Specimen pending</span>
+                {% elif it.entered_params >= it.total_params and it.total_params > 0 %}
+                  <span class="badge badge-green" style="font-size:0.72rem;white-space:nowrap;">
+                    <i data-lucide="check" style="width:11px;height:11px;display:inline;"></i> Ready ({{ it.entered_params }}/{{ it.total_params }})
+                  </span>
+                {% else %}
+                  <span class="badge badge-amber" style="font-size:0.72rem;white-space:nowrap;">
+                    {{ it.entered_params }}/{{ it.total_params }} Parameters
+                  </span>
+                {% endif %}
+              </td>
+              <td style="padding:0.875rem 1rem;vertical-align:middle;text-align:right;">
+                {% if it.barcode_string %}
+                  <a href="{{ url_for('technician.enter_results', item_id=it.item_id) }}" class="btn btn-primary btn-sm whitespace-nowrap" style="display:inline-flex;align-items:center;gap:0.3rem;">
+                    <i data-lucide="edit-3" style="width:12px;height:12px;"></i> Enter Results
+                  </a>
+                {% else %}
+                  <form method="POST" action="{{ url_for('technician.confirm_sample', booking_id=booking.booking_id) }}" style="display:inline;margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-sm whitespace-nowrap" style="font-size:0.75rem;display:inline-flex;align-items:center;gap:0.3rem;">
+                      <i data-lucide="droplet" style="width:12px;height:12px;"></i> Confirm Collected
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Right Col: Patient Profile & Workflow Progression Actions ── #}
+  <div class="lg:col-span-1" style="min-width:0;display:flex;flex-direction:column;gap:1.25rem;">
+
+    {# Task Assignment: Forward to Pathologist #}
+    <div class="card" style="border-left:4px solid var(--primary);box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <div class="card-header" style="padding:0.875rem 1.25rem;border-bottom:1px solid var(--card-border);">
+        <div class="card-title" style="margin:0;font-size:0.875rem;font-weight:700;">Workflow Progression</div>
+      </div>
+      <div class="card-body" style="padding:1.25rem;">
+        
+        {# Step 1: Specimen Collection #}
+        {% if not all_collected %}
+          <div style="font-size:0.8125rem;color:var(--slate-700);margin-bottom:0.875rem;line-height:1.45;">
+            Specimen collection is pending for this patient. Click below to verify physical collection and generate unique barcode identifiers.
+          </div>
+          <form method="POST" action="{{ url_for('technician.confirm_sample', booking_id=booking.booking_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary w-full" style="justify-content:center;padding:0.625rem;font-weight:600;display:flex;align-items:center;gap:0.375rem;">
+              <i data-lucide="droplet" style="width:14px;height:14px;"></i> Confirm Sample Collected
+            </button>
+          </form>
+
+        {# Step 2: In Analysis / Ready to Transfer to Pathologist #}
+        {% elif booking.booking_status in ['Sample_Collected', 'In_Analysis'] %}
+          <div style="font-size:0.8125rem;color:var(--slate-700);margin-bottom:0.875rem;line-height:1.45;">
+            {% if all_results_entered %}
+              All laboratory parameters have been entered. Submit this patient file to the Senior Pathologist for medical verification and final report sign-off.
+            {% else %}
+              You can enter customized biomarker values per test, or click below to finalize and transfer all tests to the Senior Pathologist for verification.
+            {% endif %}
+          </div>
+          <form method="POST" action="{{ url_for('technician.proceed_to_pathologist', booking_id=booking.booking_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary w-full" style="justify-content:center;padding:0.625rem;font-weight:600;background:var(--primary);display:flex;align-items:center;gap:0.375rem;">
+              <i data-lucide="send" style="width:14px;height:14px;"></i> Transfer to Pathologist
+            </button>
+          </form>
+
+        {# Step 3: Already with Pathologist #}
+        {% elif booking.booking_status == 'Pending_Verification' %}
+          <div class="badge badge-purple w-full" style="justify-content:center;padding:0.625rem;font-size:0.8125rem;display:flex;align-items:center;gap:0.375rem;">
+            <i data-lucide="clock" style="width:14px;height:14px;"></i> Awaiting Pathologist Review
+          </div>
+          <div style="font-size:0.72rem;color:var(--slate-500);text-align:center;margin-top:0.5rem;">
+            This file has been forwarded to the Pathologist review queue.
+          </div>
+
+        {# Step 4: Completed & Released #}
+        {% elif booking.booking_status == 'Completed' %}
+          <div class="badge badge-green w-full" style="justify-content:center;padding:0.625rem;font-size:0.8125rem;display:flex;align-items:center;gap:0.375rem;">
+            <i data-lucide="check-circle-2" style="width:14px;height:14px;"></i> Completed &amp; Released
+          </div>
+          <div style="font-size:0.72rem;color:var(--slate-500);text-align:center;margin-top:0.5rem;">
+            Pathologist has approved and officially released this diagnostic report.
+          </div>
+          <div class="mt-3">
+            <a href="{{ url_for('patient.download_report_pdf', booking_id=booking.booking_id) }}" class="btn btn-outline w-full" style="justify-content:center;font-size:0.8125rem;display:flex;align-items:center;gap:0.375rem;">
+              <i data-lucide="download" style="width:14px;height:14px;"></i> Download PDF Report
+            </a>
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    {# Patient Info Card #}
+    <div class="card" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+      <div class="card-header" style="padding:0.875rem 1.25rem;border-bottom:1px solid var(--card-border);">
+        <div class="card-title" style="margin:0;font-size:0.875rem;font-weight:700;">Patient Details</div>
+      </div>
+      <div class="card-body" style="padding:1.25rem;font-size:0.8125rem;">
+        <div style="font-weight:700;font-size:0.9375rem;color:var(--slate-900);margin-bottom:0.25rem;">{{ booking.full_name }}</div>
+        <div style="color:var(--slate-600);margin-bottom:0.125rem;">{{ booking.phone }}</div>
+        <div style="color:var(--slate-500);margin-bottom:0.75rem;word-break:break-all;">{{ booking.email }}</div>
+        
+        <div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:0.75rem;padding:0.75rem 0;border-top:1px solid var(--card-border);border-bottom:1px solid var(--card-border);margin-bottom:0.75rem;">
+          <div>
+            <span style="color:var(--slate-400);font-size:0.7rem;display:block;">Gender</span>
+            <span style="font-weight:600;color:var(--slate-800);">{{ booking.gender or '—' }}</span>
+          </div>
+          <div>
+            <span style="color:var(--slate-400);font-size:0.7rem;display:block;">Blood Group</span>
+            <span style="font-weight:600;color:var(--slate-800);">{{ booking.blood_group or '—' }}</span>
+          </div>
+          <div>
+            <span style="color:var(--slate-400);font-size:0.7rem;display:block;">Date of Birth</span>
+            <span style="font-weight:600;color:var(--slate-800);">{{ booking.date_of_birth or '—' }}</span>
+          </div>
+          <div>
+            <span style="color:var(--slate-400);font-size:0.7rem;display:block;">Payment</span>
+            <span class="badge {{ 'badge-green' if booking.payment_status == 'Paid' else 'badge-amber' }}" style="font-size:0.6875rem;">
+              {{ booking.payment_status or 'Pending' }}
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <span style="color:var(--slate-400);font-size:0.7rem;display:block;">Appointment</span>
+          <span style="font-weight:600;color:var(--slate-800);display:block;margin-top:0.125rem;">{{ booking.appointment_date }} ({{ booking.appointment_slot }})</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

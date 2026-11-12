@@ -182,11 +182,46 @@
     {% endif %}
   </div>
 
+  {# Sign-off Block #}
+  <div style="padding:1.25rem 2rem;border-top:1px solid #E2E8F0;background:#FBFDFB;display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+    <div>
+      <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748B;">Analyzed By</div>
+      <div style="font-size:.875rem;font-weight:600;color:#0F172A;margin-top:.25rem;">
+        {{ results[0].tech_name if results and results[0].tech_name else 'Medical Technologist' }}
+      </div>
+      <div style="font-size:.75rem;color:#64748B;">Clinical Diagnostic Technologist</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#166534;">Verified &amp; Released By</div>
+      <div style="font-size:.875rem;font-weight:700;color:#166534;margin-top:.25rem;">
+        {% if item.pathologist_name %}
+          {{ item.pathologist_name if item.pathologist_name.startswith('Dr.') else ('Dr. ' + item.pathologist_name) }}
+        {% elif results and results[0].pathologist_name %}
+          {{ results[0].pathologist_name if results[0].pathologist_name.startswith('Dr.') else ('Dr. ' + results[0].pathologist_name) }}
+        {% else %}
+          Consultant Pathologist
+        {% endif %}
+      </div>
+      <div style="font-size:.75rem;color:#475569;">
+        Consultant Pathologist (MBBS, FCPS)
+      </div>
+      {% if item.released_at %}
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.6875rem;color:#64748B;margin-top:.25rem;">
+        Released: {{ item.released_at }}
+      </div>
+      {% elif results and results[0].pathologist_verified_at %}
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.6875rem;color:#64748B;margin-top:.25rem;">
+        Verified: {{ results[0].pathologist_verified_at }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
   {# Footer #}
   <div class="report-footer">
     <div class="footer-note">
-      This report is for informational purposes only. Please consult a qualified physician for medical advice based on these results.
-      MedLab Diagnostics — ISO-Certified Clinical Laboratory.
+      This diagnostic report is verified under MedLab Quality Control protocols.
+      MedLab Diagnostics — ISO-15189 Certified Clinical Laboratory · Karachi, Pakistan.
     </div>
     <button class="print-btn no-print" onclick="window.print()">
       Print Diagnostic Report

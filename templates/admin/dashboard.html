@@ -1,72 +1,260 @@
 {% extends "base.html" %}
 {% block title %}Admin Dashboard{% endblock %}
 {% block page_title %}Admin Dashboard{% endblock %}
-{% block page_subtitle %}System overview &amp; analytics{% endblock %}
+{% block page_subtitle %}System overview &amp; clinical operations{% endblock %}
 
 {% block content %}
 {# ── KPI Cards ── #}
-<div class="kpi-grid mb-6">
-  <div class="kpi-card green" style="animation-delay:.05s">
-    <div class="kpi-label">Total Revenue</div>
-    <div class="kpi-value font-mono">PKR {{ "{:,.0f}".format(kpis.total_revenue|float) }}</div>
-    <div class="kpi-icon"><i data-lucide="trending-up" style="width:48px;height:48px;"></i></div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  {# Card 1: Revenue #}
+  <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-xs uppercase tracking-wider font-semibold">Total Revenue</span>
+      <i data-lucide="wallet" class="w-4 h-4 text-slate-400"></i>
+    </div>
+    <div class="font-mono text-2xl font-bold text-slate-900">
+      PKR {{ "{:,.0f}".format(kpis.total_revenue|float) }}
+    </div>
+    <div class="text-2xs text-slate-400 mt-1">Settled payments</div>
   </div>
-  <div class="kpi-card green" style="animation-delay:.10s">
-    <div class="kpi-label">Total Bookings</div>
-    <div class="kpi-value">{{ kpis.total_bookings }}</div>
-    <div class="kpi-icon"><i data-lucide="calendar" style="width:48px;height:48px;"></i></div>
+
+  {# Card 2: Total Bookings #}
+  <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-xs uppercase tracking-wider font-semibold">Total Bookings</span>
+      <i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i>
+    </div>
+    <div class="font-mono text-2xl font-bold text-slate-900">
+      {{ kpis.total_bookings }}
+    </div>
+    <div class="text-2xs text-slate-400 mt-1">All time registered</div>
   </div>
-  <div class="kpi-card amber" style="animation-delay:.15s">
-    <div class="kpi-label">Pending (Booked)</div>
-    <div class="kpi-value">{{ kpis.pending_samples }}</div>
-    <div class="kpi-icon"><i data-lucide="hourglass" style="width:48px;height:48px;"></i></div>
+
+  {# Card 3: Pending Samples #}
+  <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-xs uppercase tracking-wider font-semibold">Pending (Booked)</span>
+      <i data-lucide="hourglass" class="w-4 h-4 text-slate-400"></i>
+    </div>
+    <div class="font-mono text-2xl font-bold text-slate-900">
+      {{ kpis.pending_samples }}
+    </div>
+    <div class="text-2xs text-slate-400 mt-1">Awaiting sample draw</div>
   </div>
-  <div class="kpi-card slate" style="animation-delay:.20s">
-    <div class="kpi-label">Active Staff</div>
-    <div class="kpi-value">{{ kpis.active_staff }}</div>
-    <div class="kpi-icon"><i data-lucide="users" style="width:48px;height:48px;"></i></div>
+
+  {# Card 4: Active Staff #}
+  <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-xs uppercase tracking-wider font-semibold">Active Staff</span>
+      <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
+    </div>
+    <div class="font-mono text-2xl font-bold text-slate-900">
+      {{ kpis.active_staff }}
+    </div>
+    <div class="text-2xs text-slate-400 mt-1">Reception, Lab &amp; Pathology</div>
   </div>
 </div>
 
-{# ── Recent Notifications Panel ── #}
-{% include "notifications/_dashboard_panel.html" %}
-
-{# ── Recent Bookings ── #}
-<div class="card">
-  <div class="card-header">
-    <div class="card-title">Recent Bookings</div>
+{# ── 1. PATIENT PROCESS SUMMARY SECTION ── #}
+<div class="card mb-6" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+  <div class="card-header flex items-center justify-between" style="padding:0.875rem 1.25rem;">
+    <div class="flex items-center gap-2">
+      <i data-lucide="git-commit" style="width:16px;height:16px;color:var(--primary);"></i>
+      <div class="card-title" style="margin:0;font-size:0.9375rem;">Patient Diagnostic Process Pipeline</div>
+    </div>
+    <span class="badge badge-green">{{ recent | length }} tracked patients</span>
   </div>
+  <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Booking Ref</th>
+          <th>Tests Requested</th>
+          <th>Current Lifecycle Stage</th>
+          <th>Barcode</th>
+          <th>Download Barcode Image</th>
+          <th>Payment</th>
+          <th>Medical Sign-off</th>
+          <th>Action / Report</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in recent %}
+        <tr>
+          <td style="font-weight:600;font-size:0.84rem;">
+            {{ b.full_name }}
+            <div style="font-size:0.72rem;color:var(--slate-500);font-weight:400;">{{ b.phone }}</div>
+          </td>
+          <td><span class="font-mono text-emerald-800" style="font-size:0.8125rem;font-weight:600;">{{ b.booking_ref }}</span></td>
+          <td style="font-size:0.8125rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ b.test_names }}">
+            {{ b.test_names or '—' }}
+          </td>
+          <td>
+            {% if b.booking_status == 'Booked' or b.booking_status == 'Confirmed' %}
+              <span class="badge badge-amber"><i data-lucide="clock" style="width:11px;height:11px;display:inline;"></i> 1. Awaiting Sample</span>
+            {% elif b.booking_status == 'Sample_Collected' %}
+              <span class="badge badge-amber"><i data-lucide="droplet" style="width:11px;height:11px;display:inline;"></i> 2. Sample Collected</span>
+            {% elif b.booking_status == 'In_Analysis' %}
+              <span class="badge badge-blue"><i data-lucide="activity" style="width:11px;height:11px;display:inline;"></i> 3. In Analysis</span>
+            {% elif b.booking_status == 'Pending_Verification' %}
+              <span class="badge badge-purple"><i data-lucide="eye" style="width:11px;height:11px;display:inline;"></i> 4. Pathologist Review</span>
+            {% elif b.booking_status == 'Completed' %}
+              <span class="badge badge-green"><i data-lucide="check-circle" style="width:11px;height:11px;display:inline;"></i> 5. Completed</span>
+            {% else %}
+              <span class="badge badge-slate">{{ b.booking_status }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.barcode_string %}
+              <span class="font-mono font-semibold" style="font-size:0.75rem;color:var(--primary);">{{ b.barcode_string }}</span>
+            {% else %}
+              <span style="font-size:0.72rem;color:var(--slate-400);">Not drawn</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.barcode_string %}
+              <a href="{{ url_for('admin.download_barcode_image', barcode_string=b.barcode_string) }}" class="btn btn-outline btn-sm font-semibold" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.72rem;padding:0.25rem 0.55rem;" download="Barcode-{{ b.barcode_string }}.png">
+                <i data-lucide="download" style="width:12px;height:12px;"></i> Download Barcode Image
+              </a>
+            {% else %}
+              <span style="font-size:0.72rem;color:var(--slate-400);">Not drawn</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {{ 'badge-green' if b.payment_status == 'Paid' else ('badge-red' if b.payment_status == 'Refunded' else 'badge-amber') }}" style="font-size:0.72rem;">
+              {{ b.payment_status or 'Unpaid' }}
+            </span>
+          </td>
+          <td style="font-size:0.8125rem;color:var(--slate-600);">
+            {% if b.pathologist_name %}
+              <div style="font-weight:500;">{{ b.pathologist_name }}</div>
+              <div style="font-size:0.6875rem;color:var(--slate-400);">{{ b.released_at }}</div>
+            {% else %}
+              <span style="color:var(--slate-400);font-size:0.75rem;">Pending approval</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.booking_status == 'Completed' %}
+              <div class="flex items-center gap-1.5">
+                <a href="{{ url_for('patient.download_report_pdf', booking_id=b.booking_id) }}" class="btn btn-primary btn-sm text-xs font-semibold py-1 px-2.5 inline-flex items-center gap-1" title="Download Report PDF">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i> PDF
+                </a>
+                <a href="{{ url_for('patient.view_report', booking_id=b.booking_id) }}" class="btn btn-outline btn-sm text-xs font-semibold py-1 px-2 inline-flex items-center" title="View Full Report">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                </a>
+              </div>
+            {% else %}
+              <span class="text-2xs text-slate-400">In Progress</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align:center;color:var(--slate-400);padding:1.5rem;">
+            No patient bookings recorded yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── 2. RECENT BOOKINGS DIRECTORY ── #}
+<div class="card" x-data="{
+  search: '',
+  expanded: false,
+  matches(ref, patient, status) {
+    if (!this.search || !this.search.trim()) return true;
+    const q = this.search.toLowerCase().trim();
+    return (ref && ref.toLowerCase().includes(q)) ||
+           (patient && patient.toLowerCase().includes(q)) ||
+           (status && status.toLowerCase().includes(q));
+  }
+}">
+  <div class="card-header flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <div class="card-title">Recent Bookings</div>
+      <span class="badge badge-slate">{{ recent | length }} total</span>
+    </div>
+
+    <div class="flex items-center gap-2.5 w-full sm:w-auto">
+      {# Live Search Box #}
+      <div class="w-full sm:w-64">
+        <input type="text" x-model="search" placeholder="Search ref, patient, status…"
+               class="form-control text-xs" style="height:32px;">
+      </div>
+
+      {# Show all (N) Toggle Button #}
+      {% if recent | length > 5 %}
+      <button type="button" @click="expanded = !expanded"
+              class="btn btn-outline btn-sm text-xs font-semibold whitespace-nowrap" style="height:32px;padding:0 0.75rem;">
+        <span x-text="expanded ? 'Show top 5' : 'Show all ({{ recent | length }})'">Show all ({{ recent | length }})</span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 ml-1 transition-transform" :class="expanded ? 'rotate-180' : ''"></i>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>Booking Ref</th>
           <th>Patient</th>
-          <th>Date</th>
+          <th>Appointment</th>
           <th>Status</th>
-          <th>Amount (PKR)</th>
+          <th class="text-right">Amount (PKR)</th>
           <th>Payment</th>
+          <th>Report PDF</th>
         </tr>
       </thead>
       <tbody>
         {% for b in recent %}
-        <tr>
-          <td class="font-mono" style="font-size:.8125rem;">{{ b.booking_ref }}</td>
-          <td>{{ b.full_name }}</td>
-          <td>{{ b.appointment_date }}</td>
+        <tr x-show="matches('{{ b.booking_ref }}', '{{ b.full_name }}', '{{ b.booking_status }}') && (expanded || {{ loop.index0 }} < 5)">
+          <td class="font-mono text-xs font-semibold text-emerald-800">{{ b.booking_ref }}</td>
+          <td class="font-medium text-slate-900">{{ b.full_name }}</td>
+          <td class="text-xs text-slate-600">{{ b.appointment_date }} ({{ b.appointment_slot }})</td>
           <td>
-            {% set sc = {'Booked':'badge-green','Sample_Collected':'badge-amber','In_Analysis':'badge-slate','Completed':'badge-green','Cancelled':'badge-red'} %}
-            <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
+            {% if b.booking_status == 'Booked' or b.booking_status == 'Confirmed' %}
+              <span class="badge badge-amber">{{ b.booking_status | replace('_', ' ') }}</span>
+            {% elif b.booking_status == 'Sample_Collected' %}
+              <span class="badge badge-amber">Sample Collected</span>
+            {% elif b.booking_status == 'In_Analysis' %}
+              <span class="badge badge-blue">In Analysis</span>
+            {% elif b.booking_status == 'Pending_Verification' %}
+              <span class="badge badge-purple">Pending Review</span>
+            {% elif b.booking_status == 'Completed' %}
+              <span class="badge badge-green">Completed</span>
+            {% else %}
+              <span class="badge badge-red">{{ b.booking_status }}</span>
+            {% endif %}
           </td>
-          <td class="font-mono">{{ "{:,.0f}".format((b.total_amount or 0)|float) }}</td>
+          <td class="font-mono text-xs font-bold text-slate-900 text-right">
+            PKR {{ "{:,.0f}".format((b.total_amount or 0)|float) }}
+          </td>
           <td>
-            {% if b.payment_status == 'Paid' %}<span class="badge badge-green">Paid</span>
-            {% elif b.payment_status == 'Refunded' %}<span class="badge badge-red">Refunded</span>
-            {% else %}<span class="badge badge-amber">Unpaid</span>{% endif %}
+            <span class="badge {{ 'badge-green' if b.payment_status == 'Paid' else ('badge-red' if b.payment_status == 'Refunded' else 'badge-amber') }}">
+              {{ b.payment_status or 'Unpaid' }}
+            </span>
+          </td>
+          <td>
+            {% if b.booking_status == 'Completed' %}
+              <a href="{{ url_for('patient.download_report_pdf', booking_id=b.booking_id) }}" class="btn btn-primary btn-sm text-xs font-semibold py-1 px-2.5 inline-flex items-center gap-1" title="Download Report PDF">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i> PDF
+              </a>
+            {% else %}
+              <span class="text-2xs text-slate-400">Pending</span>
+            {% endif %}
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="empty-state">No bookings yet.</td></tr>
+        <tr>
+          <td colspan="7" class="empty-state text-center py-6 text-slate-400 text-xs">
+            No bookings found.
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>

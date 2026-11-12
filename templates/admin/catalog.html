@@ -4,10 +4,10 @@
 {% block page_subtitle %}Manage lab tests and diagnostic parameters{% endblock %}
 
 {% block topbar_actions %}
-<button class="btn btn-primary btn-sm" @click="$dispatch('open-test-modal')" x-data>
+<button class="btn btn-primary btn-sm" @click="$dispatch('open-test-modal')" onclick="window.dispatchEvent(new CustomEvent('open-test-modal'))" x-data>
   <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Lab Test
 </button>
-<button class="btn btn-ghost btn-sm" @click="$dispatch('open-param-modal')" x-data>
+<button class="btn btn-ghost btn-sm" @click="$dispatch('open-param-modal')" onclick="window.dispatchEvent(new CustomEvent('open-param-modal'))" x-data>
   <i data-lucide="activity" style="width:14px;height:14px;"></i> Add Biomarker
 </button>
 {% endblock %}
@@ -124,34 +124,247 @@
   </div>
 </div>
 
-{# ── Tests Table ── #}
-<div class="card mb-4">
-  <div class="card-header">
-    <div class="card-title">Lab Tests</div>
-    <span class="badge badge-green">{{ tests | length }}</span>
+{# ── Test Catalog Accordions with Search & Availability Toggle ── #}
+<script id="catalog-categories-json" type="application/json">
+[
+  {% for cat in categories %}
+  {
+    "id": {{ loop.index }},
+    "name": {{ cat.category_name | tojson }},
+    "tests": [
+      {% for t in cat.tests %}
+      {
+        "id": {{ t.test_id }},
+        "code": {{ t.test_code | tojson }},
+        "name": {{ t.test_name | tojson }},
+        "sample": {{ (t.sample_type or 'Serum') | tojson }},
+        "price": "{{ '{:,.0f}'.format(t.price|float) }}",
+        "tat": "{{ t.turnaround_hours }}h",
+        "instructions": {{ (t.pre_test_instructions or '') | tojson }},
+        "param_count": {{ t.param_count or 0 }},
+        "is_active": {{ 1 if t.is_active else 0 }}
+      }{{ ',' if not loop.last else '' }}
+      {% endfor %}
+    ]
+  }{{ ',' if not loop.last else '' }}
+  {% endfor %}
+]
+</script>
+
+<script>
+  function adminCatalogData() {
+    var el = document.getElementById('catalog-categories-json');
+    var raw = el ? JSON.parse(el.textContent || '[]') : [];
+    return {
+      activeCat: null,
+      search: '',
+      categories: raw,
+      editModal: false,
+      editTest: { id: null, code: '', name: '', price: '', tat: 24, instructions: '', is_active: 1 },
+      openEdit: function(t) {
+        this.editTest = {
+          id: t.id,
+          code: t.code,
+          name: t.name,
+          price: (t.price || '').toString().replace(/,/g, ''),
+          tat: parseInt(t.tat) || 24,
+          instructions: t.instructions || '',
+          is_active: t.is_active ? 1 : 0
+        };
+        this.editModal = true;
+      },
+      matchesSearch: function(test) {
+        if (!this.search || !this.search.trim()) return true;
+        var q = this.search.toLowerCase().trim();
+        return (test.name && test.name.toLowerCase().indexOf(q) !== -1) ||
+               (test.code && test.code.toLowerCase().indexOf(q) !== -1);
+      },
+      catMatches: function(cat) {
+        if (!this.search || !this.search.trim()) return true;
+        var self = this;
+        return cat.tests && cat.tests.some(function(t) { return self.matchesSearch(t); });
+      },
+      matchingTestsCount: function(cat) {
+        var self = this;
+        return cat.tests ? cat.tests.filter(function(t) { return self.matchesSearch(t); }).length : 0;
+      }
+    };
+  }
+</script>
+
+<div class="mb-6" x-data="adminCatalogData()">
+
+  {# Live Search across categories #}
+  <div class="card p-4 mb-4">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div class="relative flex-1">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+          <i data-lucide="search" style="width:16px;height:16px;"></i>
+        </div>
+        <input type="text" x-model="search" placeholder="Search test catalog by code or name (e.g. CBC, Lipid, OGTT)…"
+               class="form-control pl-9 text-xs" style="height:38px;">
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" @click="activeCat = (activeCat === 'all' ? null : 'all')"
+                class="btn btn-outline btn-sm text-xs" style="height:38px;">
+          <i data-lucide="chevrons-up-down" style="width:14px;height:14px;"></i>
+          <span x-text="activeCat === 'all' ? 'Collapse All' : 'Expand All'">Expand All</span>
+        </button>
+      </div>
+    </div>
   </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Code</th><th>Test Name</th><th>Category</th><th>Sample</th><th>Price (PKR)</th><th>TAT (hrs)</th><th>Params</th></tr>
-      </thead>
-      <tbody>
-        {% for t in tests %}
-        <tr>
-          <td class="font-mono" style="font-size:.8125rem;">{{ t.test_code }}</td>
-          <td style="font-weight:500;">{{ t.test_name }}</td>
-          <td><span class="badge badge-slate">{{ t.category_name }}</span></td>
-          <td style="font-size:.8125rem;">{{ t.sample_type }}</td>
-          <td class="font-mono">{{ "{:,.0f}".format(t.price|float) }}</td>
-          <td>{{ t.turnaround_hours }}</td>
-          <td>
-            {% set pc = params | selectattr('test_name','eq',t.test_name) | list | length %}
-            <span class="badge badge-{{ 'green' if pc > 0 else 'amber' }}">{{ pc }} params</span>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+
+  {# Accordions Container (Collapsed by Default) #}
+  <div class="space-y-3">
+    <template x-for="cat in categories" :key="cat.id">
+      <div class="card overflow-hidden" x-show="catMatches(cat)">
+        
+        {# Accordion Header #}
+        <button type="button" 
+                @click="activeCat = (activeCat === cat.id ? null : (activeCat === 'all' ? null : cat.id))"
+                class="w-full px-5 py-4 flex items-center justify-between text-left border-none bg-white hover:bg-slate-50/75 cursor-pointer transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="font-mono text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded"
+                  x-text="String(cat.id).padStart(2, '0')"></span>
+            <div>
+              <span class="font-bold text-sm text-slate-900" x-text="cat.name"></span>
+              <span class="badge badge-slate ml-2 text-2xs" x-text="matchingTestsCount(cat) + ' tests'"></span>
+            </div>
+          </div>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform"
+             :class="(activeCat === cat.id || activeCat === 'all' || search.trim().length > 0) ? 'rotate-180 text-emerald-800' : ''"></i>
+        </button>
+
+        {# Accordion Body #}
+        <div x-show="activeCat === cat.id || activeCat === 'all' || search.trim().length > 0" x-cloak
+             class="border-t border-slate-200 bg-[#F6FAF7] p-4">
+          <div class="table-wrap bg-white rounded-lg border border-slate-200">
+            <table>
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold text-2xs">
+                  <th>Code</th>
+                  <th>Test Name</th>
+                  <th>Sample</th>
+                  <th class="text-right">Price (PKR)</th>
+                  <th>TAT</th>
+                  <th>Parameters</th>
+                  <th class="text-center">Availability</th>
+                  <th class="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="t in cat.tests.filter(t => matchesSearch(t))" :key="t.id">
+                  <tr class="border-b border-slate-100 hover:bg-slate-50/75">
+                    {# Code #}
+                    <td class="font-mono font-bold text-xs text-emerald-800" x-text="t.code"></td>
+                    {# Test Name #}
+                    <td class="font-medium text-xs text-slate-900" x-text="t.name"></td>
+                    {# Sample Type #}
+                    <td class="text-xs text-slate-600" x-text="t.sample"></td>
+                    {# Price in JetBrains Mono #}
+                    <td class="font-mono font-bold text-xs text-right text-slate-900" x-text="'PKR ' + t.price"></td>
+                    {# TAT #}
+                    <td class="text-xs text-slate-500" x-text="t.tat"></td>
+                    {# Parameters Count or Needs parameters badge #}
+                    <td>
+                      <template x-if="t.param_count === 0">
+                        <span class="badge text-2xs font-semibold" style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;">
+                          Needs parameters
+                        </span>
+                      </template>
+                      <template x-if="t.param_count > 0">
+                        <span class="badge badge-slate text-2xs" x-text="t.param_count + ' params'"></span>
+                      </template>
+                    </td>
+                    {# Availability Toggle Switch (Admin ONLY) #}
+                    <td class="text-center">
+                      <form :action="'/admin/catalog/toggle-test/' + t.id" method="POST" class="inline-block m-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" 
+                                :title="t.is_active ? 'Click to disable test' : 'Click to activate test'"
+                                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-semibold transition-all border cursor-pointer"
+                                :class="t.is_active ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-slate-200'">
+                          <span class="w-1.5 h-1.5 rounded-full" :class="t.is_active ? 'bg-emerald-600' : 'bg-slate-400'"></span>
+                          <span x-text="t.is_active ? 'Active' : 'Disabled'"></span>
+                        </button>
+                      </form>
+                    </td>
+                    {# Edit Price & Details Button #}
+                    <td class="text-right">
+                      <button type="button" @click="openEdit(t)" class="btn btn-outline btn-sm text-xs" style="height:26px;padding:0 0.5rem;">
+                        <i data-lucide="edit-3" style="width:11px;height:11px;"></i> Edit Price
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="cat.tests.filter(t => matchesSearch(t)).length === 0">
+                  <td colspan="8" class="empty-state text-center py-4 text-xs text-slate-400">
+                    No matching tests in this category.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </template>
+  </div>
+
+  {# ── Modal: Edit Test Price & Details ── #}
+  <div x-show="editModal" x-cloak class="modal-overlay" @click.self="editModal = false">
+    <div class="modal-box" @click.stop style="max-width:480px;">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Edit Diagnostic Test &amp; Pricing</div>
+          <div style="font-size:.75rem;color:var(--slate-500);margin-top:.125rem;" x-text="editTest.code + ' · ' + editTest.name"></div>
+        </div>
+        <button type="button" @click="editModal = false" style="background:none;border:none;cursor:pointer;color:var(--slate-400);">
+          <i data-lucide="x" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
+
+      <form method="POST" :action="'/admin/catalog/edit-test/' + editTest.id">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body space-y-3">
+          <div class="form-group">
+            <label class="form-label">Price (PKR) *</label>
+            <div class="relative">
+              <span class="absolute left-3 top-2.5 text-xs font-mono font-bold text-slate-400">PKR</span>
+              <input type="number" step="1" min="0" name="price" x-model="editTest.price" required
+                     class="form-control pl-12 text-xs font-mono font-bold text-slate-900" placeholder="1500">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Turnaround Time (Hours) *</label>
+            <input type="number" step="1" min="1" name="turnaround_hours" x-model="editTest.tat" required
+                   class="form-control text-xs" placeholder="24">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Pre-test Patient Instructions</label>
+            <textarea name="pre_test_instructions" x-model="editTest.instructions" rows="2"
+                      class="form-control text-xs" placeholder="e.g. 10-12 hours fasting required"></textarea>
+          </div>
+
+          <div class="form-group pt-2">
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+              <input type="checkbox" name="is_active" value="1" :checked="editTest.is_active === 1"
+                     style="width:16px;height:16px;accent-color:var(--primary);">
+              <span>Test is Active and available for patient booking</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" @click="editModal = false">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i data-lucide="check" style="width:14px;height:14px;"></i> Update Test
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 

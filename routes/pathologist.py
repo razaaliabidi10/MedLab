@@ -130,7 +130,7 @@ def review(booking_id):
 @login_required
 @role_required(6)
 def approve(booking_id):
-    """Approve booking results, set verified_by/at, and mark booking Completed."""
+    """Approve booking results, set verified_by/at, released_by/at, and mark booking Completed."""
     booking = query_db("SELECT * FROM bookings WHERE booking_id = %s", (booking_id,), one=True)
     if not booking:
         flash("Booking not found.", "danger")
@@ -151,9 +151,12 @@ def approve(booking_id):
             JOIN booking_items bi ON tr.item_id = bi.item_id
             SET tr.verified_by = %s,
                 tr.pathologist_verified_at = %s,
-                tr.pathologist_comment = NULL
+                tr.released_by = %s,
+                tr.released_at = %s,
+                tr.pathologist_comment = NULL,
+                tr.verification_comment = NULL
             WHERE bi.booking_id = %s
-        """, (current_user.id, now_dt, booking_id))
+        """, (current_user.id, now_dt, current_user.id, now_dt, booking_id))
 
         # Update booking_items to Report_Ready
         cur.execute("""
@@ -165,22 +168,35 @@ def approve(booking_id):
         # Update booking status: Pending_Verification -> Completed
         cur.execute("""
             UPDATE bookings
-            SET booking_status = 'Completed'
+            SET booking_status = 'Completed',
+                released_by = %s,
+                released_at = %s,
+                verification_comment = NULL
             WHERE booking_id = %s
-        """, (booking_id,))
+        """, (current_user.id, now_dt, booking_id))
 
-        # Insert notification for patient
+        # Insert notification for patient (REPORT_READY)
         cur.execute("""
             INSERT INTO notifications (user_id, type, title, message, booking_id)
-            VALUES (%s, 'result', 'Diagnostic Report Ready', %s, %s)
+            VALUES (%s, 'REPORT_READY', 'Diagnostic Report Ready', %s, %s)
         """, (
             booking["patient_id"],
-            f"Your diagnostic report for booking {booking['booking_ref']} has been verified and approved by Dr. {current_user.full_name}.",
+            f"Your diagnostic report for {booking['booking_ref']} is ready and approved by Dr. {current_user.full_name}.",
+            booking_id
+        ))
+
+        # Notify Admin and Receptionist
+        cur.execute("""
+            INSERT INTO notifications (user_id, type, title, message, booking_id)
+            SELECT user_id, 'result', 'Report Released', %s, %s
+            FROM users WHERE role_id IN (1, 2) AND is_active = 1
+        """, (
+            f"Report for booking {booking['booking_ref']} has been approved and released by Dr. {current_user.full_name}.",
             booking_id
         ))
 
         conn.commit()
-        flash(f"Booking {booking['booking_ref']} successfully verified and approved. Report is now available for patient.", "success")
+        flash(f"Booking {booking['booking_ref']} successfully verified and approved. Report has been released to patient.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Failed to approve booking: {e}", "danger")
@@ -201,6 +217,10 @@ def send_back(booking_id):
         flash("Booking not found.", "danger")
         return redirect(url_for("pathologist.dashboard"))
 
+    if booking["booking_status"] != "Pending_Verification":
+        flash(f"Cannot send back: booking status is {booking['booking_status']}, expected Pending_Verification.", "warning")
+        return redirect(url_for("pathologist.dashboard"))
+
     comment = request.form.get("pathologist_comment", "").strip()
     if not comment:
         flash("Please provide a reason or correction instructions when sending back results.", "warning")
@@ -213,18 +233,34 @@ def send_back(booking_id):
         cur.execute("""
             UPDATE test_results tr
             JOIN booking_items bi ON tr.item_id = bi.item_id
-            SET tr.pathologist_comment = %s
+            SET tr.pathologist_comment = %s,
+                tr.verification_comment = %s
             WHERE bi.booking_id = %s
-        """, (comment, booking_id))
+        """, (comment, comment, booking_id))
+
+        # Revert sample and item status so technician can edit
+        cur.execute("""
+            UPDATE samples s
+            JOIN booking_items bi ON s.item_id = bi.item_id
+            SET s.sample_status = 'Collected'
+            WHERE bi.booking_id = %s
+        """, (booking_id,))
+
+        cur.execute("""
+            UPDATE booking_items
+            SET item_status = 'Sample_Collected'
+            WHERE booking_id = %s
+        """, (booking_id,))
 
         # Revert status: Pending_Verification -> In_Analysis (allowed by state machine)
         cur.execute("""
             UPDATE bookings
-            SET booking_status = 'In_Analysis'
+            SET booking_status = 'In_Analysis',
+                verification_comment = %s
             WHERE booking_id = %s
-        """, (booking_id,))
+        """, (comment, booking_id))
 
-        # Notify technician
+        # Notify technician who entered results
         cur.execute("""
             INSERT INTO notifications (user_id, type, title, message, booking_id)
             SELECT DISTINCT tr.technician_id, 'result', 'Report Sent Back for Review', %s, %s
@@ -232,8 +268,18 @@ def send_back(booking_id):
             JOIN booking_items bi ON tr.item_id = bi.item_id
             WHERE bi.booking_id = %s AND tr.technician_id IS NOT NULL
         """, (
-            f"Pathologist sent back booking {booking['booking_ref']}: {comment}",
+            f"Dr. {current_user.full_name} sent back booking {booking['booking_ref']}: {comment}",
             booking_id,
+            booking_id
+        ))
+
+        # Also notify Admin
+        cur.execute("""
+            INSERT INTO notifications (user_id, type, title, message, booking_id)
+            SELECT user_id, 'result', 'Report Revision Requested', %s, %s
+            FROM users WHERE role_id = 1 AND is_active = 1
+        """, (
+            f"Dr. {current_user.full_name} requested revision for booking {booking['booking_ref']}: {comment}",
             booking_id
         ))
 
@@ -247,3 +293,4 @@ def send_back(booking_id):
         conn.close()
 
     return redirect(url_for("pathologist.dashboard"))
+

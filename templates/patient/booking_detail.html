@@ -13,7 +13,7 @@
 <div style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;align-items:start;">
   <div>
     {# Status Progress #}
-    {% set statuses = ['Booked','Sample_Collected','In_Analysis','Completed'] %}
+    {% set statuses = ['Booked','Sample_Collected','In_Analysis','Pending_Verification','Completed'] %}
     {% set cur_idx = statuses.index(booking.booking_status) if booking.booking_status in statuses else 0 %}
     <div class="card mb-4">
       <div class="card-body">
@@ -51,13 +51,17 @@
                 <span class="badge {{ ic.get(item.item_status,'badge-slate') }}">{{ item.item_status | replace('_',' ') }}</span>
               </td>
               <td>
-                {% if item.item_status == 'Report_Ready' %}
-                  <a href="{{ url_for('technician.view_report', item_id=item.item_id) }}"
-                     target="_blank" class="btn btn-primary btn-sm">
-                    <i data-lucide="file-text" style="width:13px;height:13px;"></i> View Report
+                {% if booking.booking_status == 'Completed' and booking.released_at %}
+                  <a href="{{ url_for('patient.view_report', booking_id=booking.booking_id) }}"
+                     class="btn btn-primary btn-sm">
+                    <i data-lucide="file-check" style="width:13px;height:13px;"></i> View Report
                   </a>
+                {% elif booking.booking_status == 'Pending_Verification' %}
+                  <span class="badge badge-amber" style="font-size:.75rem;">Under Pathologist Review</span>
+                {% elif booking.booking_status == 'In_Analysis' %}
+                  <span class="badge badge-slate" style="font-size:.75rem;">In Analysis</span>
                 {% elif item.barcode_string %}
-                  <span style="font-size:.75rem;color:var(--slate-500);">In Lab · {{ item.barcode_string }}</span>
+                  <span style="font-size:.75rem;color:var(--slate-500);">Sample in Lab · {{ item.barcode_string }}</span>
                 {% else %}
                   <span style="font-size:.75rem;color:var(--slate-400);">Awaiting sample</span>
                 {% endif %}

@@ -104,30 +104,25 @@ class Phase2UITests(unittest.TestCase):
         self.assertIn("Verified Report", html, "Pathologist verification step must be highlighted.")
 
     def test_04_landing_page_packages_and_catalog(self):
-        """Verify dynamic health packages and test catalog are retrieved and rendered."""
+        """Verify Browse our tests catalog is retrieved and rendered."""
         client = self.app.test_client()
         res = client.get("/")
         html = res.data.decode("utf-8")
 
-        # Health packages section
-        self.assertIn("Curated Health Packages", html, "Health packages section must be present.")
-        self.assertIn("Diabetes Monitoring Pack", html, "Demo package from seed_v2 must render.")
-        self.assertIn("Save", html, "Package discount badge must be displayed.")
-
         # Test catalog section
-        self.assertIn("Live Test Directory", html, "Test catalog section must be present.")
+        self.assertIn("Browse our tests", html, "Test catalog section must be present.")
         self.assertIn("Complete Blood Count (CBC)", html, "CBC test must be present.")
         self.assertIn("PKR", html, "Prices must be formatted in PKR.")
 
     def test_05_landing_page_faq_and_home_collection(self):
-        """Verify Home Phlebotomy spotlight and FAQ accordion section."""
+        """Verify Home Phlebotomy highlight and FAQ accordion section."""
         client = self.app.test_client()
         res = client.get("/")
         html = res.data.decode("utf-8")
 
-        self.assertIn("Doorstep Healthcare", html, "Home collection section must be highlighted.")
-        self.assertIn("Frequently Asked Questions", html, "FAQ accordion section must exist.")
-        self.assertIn("ISO 15189", html, "FAQ must mention lab standards.")
+        self.assertIn("Home sample collection", html)
+        self.assertIn("Frequently Asked Questions", html)
+        self.assertIn("Reports are released only after pathologist approval", html)
 
     # -------------------------------------------------------------------------
     # 4. LOGIN INTERFACE & AUTHENTICATION
@@ -244,16 +239,11 @@ class Phase2UITests(unittest.TestCase):
     # 7. GOOGLE OAUTH / SUPABASE BRIDGE
     # -------------------------------------------------------------------------
     def test_10_google_stub_and_callback(self):
-        """Verify /auth/google renders the schema-ready placeholder and callback redirects."""
+        """Verify /auth/google route redirects to login."""
         client = self.app.test_client()
-        res = client.get("/auth/google/")
-        self.assertEqual(res.status_code, 200)
-        html = res.data.decode("utf-8")
-
-        self.assertIn("OAuth SSO Integration", html)
-        self.assertIn("users.password_hash", html)
-        self.assertIn("users.auth_provider", html)
-        self.assertIn("users.google_id", html)
+        res = client.get("/auth/google", follow_redirects=False)
+        self.assertEqual(res.status_code, 302)
+        self.assertIn("/login", res.headers.get("Location", ""))
 
         # Callback test
         cb = client.get("/auth/google/callback", follow_redirects=False)

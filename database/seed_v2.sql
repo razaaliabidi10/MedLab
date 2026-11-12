@@ -6,6 +6,7 @@
 -- How to run:
 --   mysql -u root -p medlab_db < database/seed_v2.sql
 -- =============================================================================
+SET NAMES utf8mb4;
 USE medlab_db;
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -609,60 +610,88 @@ FROM bookings b WHERE b.booking_ref = 'BK-SEED-0012';
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- Admin: new bookings
-INSERT IGNORE INTO notifications (user_id, type, title, message, booking_id, is_read)
+INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
 SELECT u.user_id, 'booking', 'New Booking Received',
        'Booking BK-SEED-0010 created by Usman Tariq. Payment pending.',
        b.booking_id, FALSE
 FROM users u, bookings b
-WHERE u.email='admin@medlab.pk' AND b.booking_ref='BK-SEED-0010';
+WHERE u.email='admin@medlab.pk' AND b.booking_ref='BK-SEED-0010'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.user_id AND n.booking_id = b.booking_id AND n.title = 'New Booking Received'
+  );
 
 -- Receptionist: new booking to process payment
-INSERT IGNORE INTO notifications (user_id, type, title, message, booking_id, is_read)
+INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
 SELECT u.user_id, 'booking', 'New Booking — Payment Due',
        'Booking BK-SEED-0010: Usman Tariq is waiting for payment confirmation.',
        b.booking_id, FALSE
 FROM users u, bookings b
-WHERE u.email='receptionist@medlab.pk' AND b.booking_ref='BK-SEED-0010';
+WHERE u.email='receptionist@medlab.pk' AND b.booking_ref='BK-SEED-0010'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.user_id AND n.booking_id = b.booking_id AND n.title = 'New Booking — Payment Due'
+  );
 
 -- Patient: booking confirmation
-INSERT IGNORE INTO notifications (user_id, type, title, message, booking_id, is_read)
+INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
 SELECT u.user_id, 'booking', 'Booking Confirmed',
        'Your booking BK-SEED-0009 for Thyroid Stimulating Hormone is confirmed. Please arrive on time.',
        b.booking_id, FALSE
 FROM users u, bookings b
-WHERE u.email='patient1@medlab.pk' AND b.booking_ref='BK-SEED-0009';
+WHERE u.email='patient1@medlab.pk' AND b.booking_ref='BK-SEED-0009'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.user_id AND n.booking_id = b.booking_id AND n.title = 'Booking Confirmed'
+  );
 
 -- Collector: sample to collect today
-INSERT IGNORE INTO notifications (user_id, type, title, message, booking_id, is_read)
+INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
 SELECT u.user_id, 'sample', 'Sample Collection Due',
        'Booking BK-SEED-0009: Thyroid sample for Aisha Khan is scheduled for tomorrow.',
        b.booking_id, FALSE
 FROM users u, bookings b
-WHERE u.email='collector@medlab.pk' AND b.booking_ref='BK-SEED-0009';
+WHERE u.email='collector@medlab.pk' AND b.booking_ref='BK-SEED-0009'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.user_id AND n.booking_id = b.booking_id AND n.title = 'Sample Collection Due'
+  );
 
 -- Technician: sample received, analysis pending
-INSERT IGNORE INTO notifications (user_id, type, title, message, booking_id, is_read)
+INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
 SELECT u.user_id, 'sample', 'Sample Ready for Analysis',
        'Sample SMP-SEED-00307 (Lipid Profile) for Mehwish Butt is ready for analysis.',
        b.booking_id, FALSE
 FROM users u, bookings b
-WHERE u.email='technician@medlab.pk' AND b.booking_ref='BK-SEED-0007';
+WHERE u.email='technician@medlab.pk' AND b.booking_ref='BK-SEED-0007'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.user_id AND n.booking_id = b.booking_id AND n.title = 'Sample Ready for Analysis'
+  );
 
 -- Pathologist: results awaiting verification
-INSERT IGNORE INTO notifications (user_id, type, title, message, booking_id, is_read)
+INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
 SELECT u.user_id, 'result', 'Results Awaiting Your Approval',
        'CBC results for Ali Hassan (BK-SEED-0006) have been entered and require pathologist verification.',
        b.booking_id, FALSE
 FROM users u, bookings b
-WHERE u.email='pathologist@medlab.pk' AND b.booking_ref='BK-SEED-0006';
+WHERE u.email='pathologist@medlab.pk' AND b.booking_ref='BK-SEED-0006'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.user_id AND n.booking_id = b.booking_id AND n.title = 'Results Awaiting Your Approval'
+  );
 
 -- Patient: report ready
-INSERT IGNORE INTO notifications (user_id, type, title, message, booking_id, is_read)
+INSERT INTO notifications (user_id, type, title, message, booking_id, is_read)
 SELECT u.user_id, 'result', 'Your Report is Ready',
        'Your diagnostic report for Vitamin D (BK-SEED-0005) has been verified and is now available.',
        b.booking_id, FALSE
 FROM users u, bookings b
-WHERE u.email='patient5@medlab.pk' AND b.booking_ref='BK-SEED-0005';
+WHERE u.email='patient5@medlab.pk' AND b.booking_ref='BK-SEED-0005'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.user_id AND n.booking_id = b.booking_id AND n.title = 'Your Report is Ready'
+  );
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- END OF SEED v2

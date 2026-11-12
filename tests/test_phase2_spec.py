@@ -37,76 +37,66 @@ class Phase2SpecTests(unittest.TestCase):
         cls.client = cls.app.test_client()
 
     # -------------------------------------------------------------------------
-    # 1. LANDING PAGE "BROWSE OUR TESTS" ACCORDION
     # -------------------------------------------------------------------------
-    def test_01_landing_browse_tests_section_collapsed_by_default(self):
-        """Verify tests section is titled 'Browse our tests' and collapsed by default with Alpine.js."""
+    # 1. STITCH LANDING PAGE SPECIFICATION TESTS
+    # -------------------------------------------------------------------------
+    def test_01_landing_browse_tests_section_and_catalog(self):
+        """Verify 'Browse our tests' section exists, is collapsed by default, and renders active tests."""
         res = self.client.get("/")
         self.assertEqual(res.status_code, 200)
         html = res.data.decode("utf-8")
 
-        # Heading and control
         self.assertIn("Browse our tests", html)
-        self.assertIn("open: false", html, "Catalog section must initialize Alpine with open: false.")
-        self.assertIn("activeCat: null", html, "Accordion must initialize activeCat as null.")
-        self.assertIn("Explore All Categories", html, "Control button to explore categories must be present.")
-        self.assertIn("Collapse Test Directory", html, "Toggle label must be present.")
-
-    def test_02_landing_numbered_categories_order(self):
-        """Verify categories are numbered sequentially starting with Hematology and Clinical Biochemistry."""
-        res = self.client.get("/")
-        html = res.data.decode("utf-8")
-
-        self.assertIn("1. Hematology", html)
-        self.assertIn("2. Clinical Biochemistry", html)
-        self.assertIn("3. Endocrinology &amp; Metabolism", html)
-
-    def test_03_landing_per_category_search_and_empty_state(self):
-        """Verify per-category search input and empty state message exist."""
-        res = self.client.get("/")
-        html = res.data.decode("utf-8")
-
-        self.assertIn("Search tests in Hematology...", html)
-        self.assertIn("Search tests in Clinical Biochemistry...", html)
-        self.assertIn("No tests found in this category", html)
-        self.assertIn("filteredTests", html, "Client-side Alpine filter property must be defined.")
-
-    def test_04_landing_only_active_tests_with_mono_price(self):
-        """Verify active tests render name, sample type, and price in JetBrains Mono."""
-        res = self.client.get("/")
-        html = res.data.decode("utf-8")
-
-        self.assertIn("Complete Blood Count (CBC)", html)
-        self.assertIn("Blood (EDTA)", html)
-        self.assertIn("font-mono", html, "Prices and codes must use font-mono (JetBrains Mono).")
+        self.assertIn('id="browse-tests"', html)
+        self.assertIn("catalogOpen: false", html)
         self.assertIn("PKR", html)
 
-    def test_05_landing_preserved_editorial_sections(self):
-        """Verify hero, 3 stats, 01-04 workflow steps, packages, home collection, why us, FAQ, and footer remain intact."""
+    def test_02_landing_hero_and_real_links(self):
+        """Verify hero action area features real Sign Up and Sign In links."""
         res = self.client.get("/")
         html = res.data.decode("utf-8")
 
-        # Hero
-        self.assertIn("Precision Diagnostics For Proactive Health", html)
-        # 3 Stats
-        self.assertIn("99.8%", html)
-        self.assertIn("12-24h", html)
-        self.assertIn("15k+", html)
-        # 01-04 Workflow
-        self.assertIn("01", html)
-        self.assertIn("02", html)
-        self.assertIn("03", html)
-        self.assertIn("04", html)
-        # Health packages
-        self.assertIn("Curated Health Packages", html)
-        # Home Phlebotomy
-        self.assertIn("Doorstep Healthcare", html)
-        # Why Us
-        self.assertIn("Clinical Standards", html)
-        # FAQ
+        self.assertIn("Sign In", html)
+        self.assertIn("Sign Up", html)
+        self.assertIn("/login", html)
+        self.assertIn("/signup", html)
+        self.assertNotIn('href="#signin"', html)
+        self.assertNotIn('href="#signup"', html)
+
+    def test_03_landing_why_choose_medlab_claims(self):
+        """Verify Why choose MedLab section removes unverifiable claims and includes pathologist approval chip."""
+        res = self.client.get("/")
+        html = res.data.decode("utf-8")
+
+        self.assertIn("Why choose MedLab", html)
+        self.assertIn("Reports are released only after pathologist approval", html)
+        self.assertIn("Pathologist-verified reports", html)
+        self.assertIn("Home sample collection", html)
+        self.assertIn("Real-time status updates", html)
+        self.assertIn("Secure patient portal", html)
+        self.assertNotIn("ISO 15189", html)
+        self.assertNotIn("HIPAA", html)
+
+    def test_04_landing_how_it_works_four_steps(self):
+        """Verify How It Works has exactly Book, Collect, Test, Verified Report."""
+        res = self.client.get("/")
+        html = res.data.decode("utf-8")
+
+        self.assertIn("How It Works", html)
+        self.assertIn("Book", html)
+        self.assertIn("Collect", html)
+        self.assertIn("Test", html)
+        self.assertIn("Verified Report", html)
+
+    def test_05_landing_faq_and_footer(self):
+        """Verify FAQ accordion and footer contact info."""
+        res = self.client.get("/")
+        html = res.data.decode("utf-8")
+
         self.assertIn("Frequently Asked Questions", html)
-        # Footer
-        self.assertIn("MedLab Diagnostics", html)
+        self.assertIn("How do I book a test?", html)
+        self.assertIn("care@medlab.pk", html)
+        self.assertIn("+92 300 0000000", html)
 
     # -------------------------------------------------------------------------
     # 2. LOGIN & SIGNUP LAYOUT UPDATES

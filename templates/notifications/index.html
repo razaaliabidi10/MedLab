@@ -42,7 +42,7 @@
     {% if notifications %}
       <div style="display:flex;flex-direction:column;">
         {% for n in notifications %}
-        <a href="{{ url_for('notifications.detail', notification_id=n.notification_id) }}"
+        <a href="{{ url_for('notifications.open_target', notification_id=n.notification_id) }}"
            style="display:flex;align-items:flex-start;justify-content:space-between;gap:1.25rem;padding:1.125rem 1.5rem;text-decoration:none;border-bottom:1px solid var(--card-border);transition:background 0.15s;{% if not n.is_read %}background:#FDFEFC;{% endif %}"
            onmouseover="this.style.background='#F8FAFC'"
            onmouseout="this.style.background='{% if not n.is_read %}#FDFEFC{% else %}transparent{% endif %}'">

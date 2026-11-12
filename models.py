@@ -14,6 +14,7 @@ class User(UserMixin):
         self.role_name = row.get("role_name", "")
         self.avatar_url = row.get("avatar_url", "default_avatar.png")
         self.is_active_flag = bool(row.get("is_active", True))
+        self.must_change_password = bool(row.get("must_change_password", False))
 
     def get_id(self):
         return str(self.id)
@@ -53,7 +54,9 @@ class User(UserMixin):
             "WHERE u.user_id=%s",
             (user_id,), one=True
         )
-        return User(row) if row else None
+        if not row or not row.get("is_active", True):
+            return None
+        return User(row)
 
 
 def role_required(*roles):

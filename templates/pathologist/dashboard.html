@@ -24,9 +24,6 @@
   </div>
 </div>
 
-{# ── Recent Notifications Panel ── #}
-{% include "notifications/_dashboard_panel.html" %}
-
 <div class="card mb-6">
   <div class="card-header">
     <div class="card-title">Pending Verification Queue</div>
@@ -122,9 +119,14 @@
           <td style="font-size:.8125rem;color:var(--slate-500);">{{ r.verified_at }}</td>
           <td><span class="badge badge-emerald">Approved</span></td>
           <td>
-            <a href="{{ url_for('pathologist.review', booking_id=r.booking_id) }}" class="btn btn-outline btn-sm">
-              <i data-lucide="file-text" style="width:13px;height:13px;"></i> View Details
-            </a>
+            <div class="flex items-center gap-1.5">
+              <a href="{{ url_for('pathologist.review', booking_id=r.booking_id) }}" class="btn btn-outline btn-sm">
+                <i data-lucide="file-text" style="width:13px;height:13px;"></i> View
+              </a>
+              <a href="{{ url_for('patient.download_report_pdf', booking_id=r.booking_id) }}" class="btn btn-primary btn-sm" title="Download PDF Report">
+                <i data-lucide="download" style="width:13px;height:13px;"></i> PDF
+              </a>
+            </div>
           </td>
         </tr>
         {% endfor %}

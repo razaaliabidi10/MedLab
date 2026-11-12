@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Authenticating — MedLab Diagnostics{% endblock %}
+
+{% block public_content %}
+<div class="min-h-screen flex flex-col items-center justify-center p-4" style="background:#0B3D2E;">
+  <div class="w-full max-w-md text-center">
+    
+    {# Brand Header #}
+    <div class="mb-6">
+      <div class="inline-flex items-center gap-2.5 text-white">
+        <div class="w-10 h-10 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center shadow-xs">
+          <i data-lucide="flask-conical" class="text-white w-5 h-5"></i>
+        </div>
+        <span class="font-display text-2xl font-bold tracking-tight text-white">MedLab</span>
+      </div>
+    </div>
+
+    {# Callback Status Card #}
+    <div id="supabase-callback-container" class="bg-white rounded-2xl border border-slate-200 shadow-xl p-8">
+      
+      {# Loading State #}
+      <div id="callback-loading-box" class="flex flex-col items-center justify-center py-4">
+        <div class="w-12 h-12 border-3 border-emerald-200 border-t-emerald-700 rounded-full animate-spin mb-4"></div>
+        <h2 class="text-lg font-bold text-slate-900 tracking-tight">Verifying Credentials</h2>
+        <p id="callback-status-text" class="text-xs text-slate-500 mt-2">
+          Connecting to secure authentication gateway...
+        </p>
+      </div>
+
+      {# Error State (hidden by default) #}
+      <div id="callback-error-box" class="hidden text-center py-4">
+        <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="alert-circle" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900 tracking-tight">Authentication Notice</h2>
+        <p id="callback-error-text" class="text-xs text-red-600 mt-2 bg-red-50 p-3 rounded-lg border border-red-100 leading-relaxed">
+          Unable to complete sign-in.
+        </p>
+        <div class="mt-6">
+          <a href="{{ url_for('auth.login') }}" class="btn btn-primary inline-flex items-center justify-center px-6 py-2.5 text-xs font-semibold rounded-full no-underline">
+            Back to Sign In
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# Pinned Supabase JS SDK (at least 2 weeks old, never @latest) #}
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
+
+<script>
+  window.MEDLAB_SUPABASE_CONFIG = {
+    url: {{ supabase_url | tojson }},
+    key: {{ supabase_publishable_key | tojson }},
+    callbackUrl: {{ url_for('supabase_auth.callback', _external=True) | tojson }},
+    csrfToken: {{ csrf_token() | tojson }}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/supabase-auth.js') }}"></script>
+{% endblock %}

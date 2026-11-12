@@ -44,7 +44,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Test</th><th>Sample Type</th><th>Barcode</th><th>Item Status</th><th>Action</th></tr>
+            <tr><th>Test</th><th>Sample Type</th><th>Barcode</th><th>Download Barcode Image</th><th>Item Status</th><th>Action</th></tr>
           </thead>
           <tbody>
             {% for item in items %}
@@ -53,9 +53,18 @@
               <td style="font-size:.8125rem;">{{ item.sample_type }}</td>
               <td>
                 {% if item.barcode_string %}
-                  <span class="font-mono" style="font-size:.8125rem;">{{ item.barcode_string }}</span>
+                  <span class="font-mono font-semibold" style="font-size:.8125rem;color:var(--primary);">{{ item.barcode_string }}</span>
                 {% else %}
                   <span style="color:var(--slate-400);font-size:.8125rem;">Not collected</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.barcode_string %}
+                  <a href="{{ url_for('receptionist.download_barcode_image', barcode_string=item.barcode_string) }}" class="btn btn-outline btn-sm font-semibold" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.75rem;padding:0.25rem 0.6rem;" download="Barcode-{{ item.barcode_string }}.png">
+                    <i data-lucide="download" style="width:13px;height:13px;"></i> Download Barcode Image
+                  </a>
+                {% else %}
+                  <span style="color:var(--slate-400);font-size:.75rem;">Not drawn</span>
                 {% endif %}
               </td>
               <td>
@@ -63,20 +72,13 @@
                 <span class="badge {{ ic.get(item.item_status,'badge-slate') }}">{{ item.item_status | replace('_',' ') }}</span>
               </td>
               <td>
-                {% if booking.payment_status == 'Paid' and item.item_status == 'Pending_Sample' %}
-                  <form method="POST" action="{{ url_for('receptionist.collect_sample', item_id=item.item_id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-primary btn-sm">
-                      <i data-lucide="droplets" style="width:13px;height:13px;"></i> Collect Sample
-                    </button>
-                  </form>
-                {% elif item.barcode_string %}
+                {% if item.barcode_string %}
                   <a href="{{ url_for('receptionist.print_barcode', item_id=item.item_id) }}"
                      target="_blank" class="btn btn-ghost btn-sm">
                     <i data-lucide="printer" style="width:13px;height:13px;"></i> Print Label
                   </a>
-                {% elif booking.payment_status != 'Paid' %}
-                  <span style="font-size:.75rem;color:var(--slate-400);">Collect payment first</span>
+                {% else %}
+                  <span style="font-size:.75rem;color:var(--slate-400);">Pending Lab Tech</span>
                 {% endif %}
               </td>
             </tr>
@@ -89,6 +91,36 @@
 
   {# ── Right: Invoice & Patient ── #}
   <div>
+    {# ── Task Assignment: Transfer to Lab Technician ── #}
+    <div class="card mb-4" style="border-left:4px solid var(--primary);">
+      <div class="card-header"><div class="card-title">Task Handoff</div></div>
+      <div class="card-body">
+        {% if booking.booking_status in ['Confirmed', 'Sample_Collected', 'In_Analysis', 'Pending_Verification', 'Completed'] %}
+          <div class="badge badge-green w-full" style="justify-content:center;padding:.625rem;font-size:0.8125rem;">
+            <i data-lucide="check-circle" style="width:14px;height:14px;"></i> Transferred to Lab Technician
+          </div>
+          <div style="font-size:0.75rem;color:var(--slate-500);text-align:center;margin-top:0.5rem;">
+            Specimen collection &amp; diagnostic testing is now in progress with the Lab Technician.
+          </div>
+        {% elif booking.payment_status == 'Paid' %}
+          <div style="font-size:0.8125rem;color:var(--slate-600);margin-bottom:0.75rem;line-height:1.4;">
+            Payment verified. Click below to transfer this patient to the Lab Technician to initiate sample collection.
+          </div>
+          <form method="POST" action="{{ url_for('receptionist.proceed_to_technician', booking_id=booking.booking_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+            <button type="submit" class="btn btn-primary w-full" style="justify-content:center;font-weight:600;padding:0.625rem;">
+              <i data-lucide="send" style="width:14px;height:14px;margin-right:4px;"></i> Transfer to Lab Technician
+            </button>
+          </form>
+        {% else %}
+          <div style="font-size:0.8125rem;color:var(--flag-amber);background:var(--flag-amber-bg);border:1px solid var(--flag-amber-bdr);padding:0.625rem;border-radius:6px;line-height:1.4;">
+            <i data-lucide="alert-circle" style="width:13px;height:13px;display:inline;vertical-align:text-bottom;"></i>
+            Please collect payment below to enable the "Transfer to Lab Technician" step.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
     <div class="card mb-4">
       <div class="card-header"><div class="card-title">Patient</div></div>
       <div class="card-body">

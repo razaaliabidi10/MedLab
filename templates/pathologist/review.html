@@ -4,9 +4,16 @@
 {% block page_subtitle %}Review diagnostic measurements, check reference ranges, and sign off{% endblock %}
 
 {% block topbar_actions %}
-<a href="{{ url_for('pathologist.dashboard') }}" class="btn btn-outline btn-sm">
-  <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back to Queue
-</a>
+<div class="flex items-center gap-2">
+  <a href="{{ url_for('pathologist.dashboard') }}" class="btn btn-outline btn-sm">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back to Queue
+  </a>
+  {% if booking.booking_status == 'Completed' %}
+  <a href="{{ url_for('patient.download_report_pdf', booking_id=booking.booking_id) }}" class="btn btn-primary btn-sm">
+    <i data-lucide="download" style="width:14px;height:14px;"></i> Download PDF
+  </a>
+  {% endif %}
+</div>
 {% endblock %}
 
 {% block content %}
@@ -125,43 +132,75 @@
 
 {# ── Pathologist Actions (Approval & Send-Back) ── #}
 {% if booking.booking_status == 'Pending_Verification' %}
-<div class="card" style="padding:1.5rem;background:#F8FAFC;border:1px solid var(--slate-200);">
+<div x-data="{ approveModal: false }" class="card" style="padding:1.5rem;background:#F8FAFC;border:1px solid var(--slate-200);">
   <h3 style="font-size:1.125rem;font-weight:700;color:var(--slate-900);margin-bottom:1rem;">Pathologist Sign-Off Actions</h3>
 
   <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start;">
-    {# 1. Direct Approval Form #}
+    {# 1. Direct Approval Card #}
     <div style="flex:1;min-width:280px;background:#FFFFFF;padding:1.25rem;border-radius:.5rem;border:1px solid #E2E8F0;">
-      <h4 style="font-size:.9375rem;font-weight:600;color:var(--emerald);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;">
-        <i data-lucide="check-circle-2" style="width:18px;height:18px;"></i>
-        Approve & Finalize Report
+      <h4 style="font-size:.9375rem;font-weight:600;color:var(--primary);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;">
+        <i data-lucide="check-circle-2" style="width:18px;height:18px;color:var(--primary);"></i>
+        Approve &amp; Release Report
       </h4>
-      <p style="font-size:.8125rem;color:var(--slate-600);margin-bottom:1rem;">
-        Confirm that all biomarker measurements and auto-flags have been medically reviewed. Approval immediately releases the official PDF report to the patient and marks the booking Completed.
+      <p style="font-size:.8125rem;color:var(--slate-600);margin-bottom:1rem;line-height:1.5;">
+        Confirm that all biomarker measurements and auto-flags have been reviewed. Approval immediately releases the verified diagnostic report to the patient and marks the booking as Completed.
       </p>
-      <form action="{{ url_for('pathologist.approve', booking_id=booking.booking_id) }}" method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-primary" style="background:#16A34A;border-color:#16A34A;width:100%;justify-content:center;">
-          <i data-lucide="file-check" style="width:16px;height:16px;"></i>
-          Sign & Approve Report
-        </button>
-      </form>
+      <button type="button" @click="approveModal = true" class="btn btn-primary" style="width:100%;justify-content:center;">
+        <i data-lucide="file-check" style="width:16px;height:16px;"></i>
+        Sign &amp; Approve Report
+      </button>
+
+      {# ── Approval Confirmation Modal ── #}
+      <div
+        x-show="approveModal"
+        x-cloak
+        style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(15,23,42,0.45);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:1rem;"
+      >
+        <div
+          class="card"
+          style="max-width:440px;width:100%;box-shadow:0 10px 25px rgba(0,0,0,0.15);padding:1.5rem;"
+          @click.away="approveModal = false"
+        >
+          <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+            <div style="width:36px;height:36px;border-radius:50%;background:#DCFCE7;color:#166534;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i data-lucide="file-check" style="width:20px;height:20px;"></i>
+            </div>
+            <div>
+              <h3 style="font-size:1rem;font-weight:700;color:var(--slate-900);">Approve &amp; Release Report</h3>
+              <div class="font-mono" style="font-size:.75rem;color:var(--slate-500);">Booking {{ booking.booking_ref }} · {{ booking.patient_name }}</div>
+            </div>
+          </div>
+          <p style="font-size:.875rem;color:var(--slate-600);line-height:1.5;margin-bottom:1.25rem;">
+            You are signing off as <strong>Dr. {{ current_user.full_name }}</strong>. This will transition the booking to Completed and release the verified report to the patient immediately.
+          </p>
+          <form action="{{ url_for('pathologist.approve', booking_id=booking.booking_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:flex;justify-content:flex-end;gap:.625rem;">
+              <button type="button" @click="approveModal = false" class="btn btn-ghost btn-sm">Cancel</button>
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i data-lucide="check" style="width:14px;height:14px;"></i> Confirm &amp; Release Report
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 
     {# 2. Send Back for Review Form #}
     <div style="flex:1;min-width:280px;background:#FFFFFF;padding:1.25rem;border-radius:.5rem;border:1px solid #E2E8F0;">
-      <h4 style="font-size:.9375rem;font-weight:600;color:var(--amber);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;">
-        <i data-lucide="corner-down-left" style="width:18px;height:18px;"></i>
+      <h4 style="font-size:.9375rem;font-weight:600;color:#92400E;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;">
+        <i data-lucide="corner-down-left" style="width:18px;height:18px;color:#D97706;"></i>
         Send Back to Technician
       </h4>
-      <p style="font-size:.8125rem;color:var(--slate-600);margin-bottom:.75rem;">
-        If any measurement appears inconsistent or requires re-analysis, specify correction instructions below:
+      <p style="font-size:.8125rem;color:var(--slate-600);margin-bottom:.75rem;line-height:1.5;">
+        If any measurement appears inconsistent or requires re-analysis, specify instructions for the laboratory technician:
       </p>
       <form action="{{ url_for('pathologist.send_back', booking_id=booking.booking_id) }}" method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="margin-bottom:.75rem;">
-          <textarea name="pathologist_comment" rows="2" class="form-control" placeholder="Specify instructions (e.g., 'Please re-run sample for HbA1c to confirm high value')..." required style="width:100%;font-size:.8125rem;"></textarea>
+          <textarea name="pathologist_comment" rows="2" class="form-control" placeholder="Specify instructions (e.g., 'Please re-run sample for SGPT to confirm elevated value')..." required style="width:100%;font-size:.8125rem;"></textarea>
         </div>
-        <button type="submit" class="btn btn-outline" style="border-color:var(--amber);color:var(--amber);width:100%;justify-content:center;">
+        <button type="submit" class="btn btn-outline btn-sm" style="border-color:#F59E0B;color:#B45309;width:100%;justify-content:center;">
           <i data-lucide="send" style="width:14px;height:14px;"></i>
           Send Back for Re-Analysis
         </button>
@@ -171,9 +210,9 @@
 </div>
 {% else %}
 <div class="card" style="padding:1.25rem;background:#F0FDF4;border:1px solid #BBF7D0;display:flex;align-items:center;gap:1rem;">
-  <i data-lucide="check-circle" style="width:24px;height:24px;color:var(--emerald);"></i>
+  <i data-lucide="check-circle" style="width:24px;height:24px;color:var(--primary);"></i>
   <div>
-    <div style="font-weight:600;color:#166534;">Report Already Verified & Completed</div>
+    <div style="font-weight:600;color:#166534;">Report Verified &amp; Released</div>
     <div style="font-size:.8125rem;color:#15803D;">This booking has been approved and cannot be altered.</div>
   </div>
 </div>

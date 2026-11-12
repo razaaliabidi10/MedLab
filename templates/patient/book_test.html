@@ -1,100 +1,312 @@
 {% extends "base.html" %}
 {% block title %}Book a Test{% endblock %}
 {% block page_title %}Book Diagnostic Tests{% endblock %}
-{% block page_subtitle %}Select tests and choose an appointment time{% endblock %}
+{% block page_subtitle %}Select lab tests and choose your preferred appointment time{% endblock %}
 
 {% block content %}
-<form method="POST" action="{{ url_for('patient.book_test') }}"
-      x-data="{ selected: [], total: 0 }">
+<script>
+window.MEDLAB_TESTS = {{ tests_json | safe }};
+
+function bookTestComponent() {
+  return {
+    testsMeta: window.MEDLAB_TESTS || {},
+    selected: [],
+    total: 0,
+    searchQuery: '',
+    activeCategory: 'ALL',
+    apptDate: '{{ today_karachi }}',
+    selectedSlot: '08:00 AM - 10:00 AM',
+    slotAlert: false,
+    slotAlertMsg: '',
+    slots: {
+      '08:00 AM - 10:00 AM': { available: true, status_label: 'Available' },
+      '10:00 AM - 12:00 PM': { available: true, status_label: 'Available' },
+      '02:00 PM - 04:00 PM': { available: true, status_label: 'Available' },
+      '04:00 PM - 06:00 PM': { available: true, status_label: 'Available' }
+    },
+    async fetchSlotAvailability() {
+      try {
+        const url = '{{ url_for("patient.slot_availability") }}?date=' + encodeURIComponent(this.apptDate);
+        const res = await fetch(url);
+        if (res.ok) {
+          this.slots = await res.json();
+          // If the currently selected slot is unavailable, automatically pick the first available one
+          if (this.slots[this.selectedSlot] && !this.slots[this.selectedSlot].available) {
+            const firstAvail = Object.keys(this.slots).find(s => this.slots[s].available);
+            if (firstAvail) {
+              this.selectedSlot = firstAvail;
+              this.slotAlert = false;
+              this.slotAlertMsg = '';
+            } else {
+              this.slotAlert = true;
+              this.slotAlertMsg = 'All time slots for this date are currently fully booked. Please select an alternate date.';
+            }
+          } else {
+            this.slotAlert = false;
+            this.slotAlertMsg = '';
+          }
+        }
+      } catch(e) {
+        console.error('Failed to fetch slot availability', e);
+      }
+    },
+    checkSlotAndAlert() {
+      const slotInfo = this.slots[this.selectedSlot];
+      if (slotInfo && !slotInfo.available && this.selected.length > 0) {
+        const names = this.selected.map(id => this.testsMeta[id] ? this.testsMeta[id].name : '').filter(Boolean).join(', ');
+        this.slotAlertMsg = 'The slot "' + this.selectedSlot + '" is currently Unavailable. The tests you selected (' + (names || 'selected tests') + ') cannot be booked in this slot. Please choose an available time slot.';
+        this.slotAlert = true;
+      } else {
+        this.slotAlert = false;
+        this.slotAlertMsg = '';
+      }
+    },
+    isTestVisible(testId) {
+      const meta = this.testsMeta[testId];
+      if (!meta) return true;
+      if (this.activeCategory !== 'ALL' && this.activeCategory !== meta.category) {
+        return false;
+      }
+      if (!this.searchQuery || !this.searchQuery.trim()) {
+        return true;
+      }
+      const q = this.searchQuery.toLowerCase().trim();
+      const n = (meta.name || '').toLowerCase();
+      const c = (meta.code || '').toLowerCase();
+      return n.includes(q) || c.includes(q);
+    },
+    toggleTest(testId, isChecked) {
+      const id = Number(testId);
+      if (isChecked) {
+        if (!this.selected.includes(id)) {
+          this.selected.push(id);
+        }
+      } else {
+        this.selected = this.selected.filter(x => x !== id);
+      }
+      this.recalc();
+    },
+    recalc() {
+      let sum = 0;
+      for (const id of this.selected) {
+        const meta = this.testsMeta[id];
+        if (meta) {
+          sum += meta.price;
+        }
+      }
+      this.total = sum;
+      this.checkSlotAndAlert();
+    },
+    selectSlot(val) {
+      this.selectedSlot = val;
+      const slotInfo = this.slots[val];
+      if (slotInfo && !slotInfo.available) {
+        const names = this.selected.map(id => this.testsMeta[id] ? this.testsMeta[id].name : '').filter(Boolean).join(', ');
+        this.slotAlertMsg = 'The time slot "' + val + '" is currently unavailable (fully booked). ' + (names ? 'The tests you selected (' + names + ') cannot be booked in this slot. ' : '') + 'Please choose an alternate available time slot.';
+        this.slotAlert = true;
+      } else {
+        this.slotAlert = false;
+        this.slotAlertMsg = '';
+      }
+    },
+    init() {
+      this.fetchSlotAvailability();
+    }
+  };
+}
+</script>
+
+<form method="POST" action="{{ url_for('patient.book_test') }}" x-data="bookTestComponent()">
   {{ form.hidden_tag() }}
 
-  <div style="display:grid;grid-template-columns:1fr 300px;gap:1.25rem;align-items:start;">
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:1.25rem;align-items:start;">
 
-    {# ── Test Selection ── #}
+    {# ── Left: Compact Test Selection ── #}
     <div>
-      <div class="card mb-4">
-        <div class="card-header">
-          <div class="card-title">Select Tests</div>
-          <span class="badge badge-green" x-text="selected.length + ' selected'">0 selected</span>
+      <div class="card mb-4" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div class="card-header" style="flex-wrap:wrap;gap:0.75rem;padding:0.875rem 1.25rem;">
+          <div class="flex items-center gap-2">
+            <div class="card-title" style="margin:0;">Select Tests</div>
+            <span class="badge badge-green" x-text="selected.length + ' selected'">0 selected</span>
+          </div>
+
+          {# Search Box #}
+          <div style="position:relative;min-width:240px;flex:1;max-width:320px;">
+            <i data-lucide="search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--slate-400);"></i>
+            <input type="text" x-model="searchQuery" placeholder="Search test name or code..."
+                   class="form-control" style="padding-left:2rem;height:34px;font-size:0.8125rem;">
+          </div>
         </div>
-        <div class="card-body">
-          {% set current_cat = namespace(name='') %}
-          {% for test in tests %}
-            {% if test.category_name != current_cat.name %}
-              {% set current_cat.name = test.category_name %}
-              <div style="font-size:.6875rem;font-weight:700;color:var(--slate-500);text-transform:uppercase;letter-spacing:.08em;margin:{% if loop.index > 1 %}1.25rem{% else %}0{% endif %} 0 .625rem;">
-                {{ test.category_name }}
-              </div>
-            {% endif %}
-            <label style="display:flex;align-items:center;gap:.75rem;padding:.75rem;border:1px solid var(--card-border);border-radius:8px;cursor:pointer;margin-bottom:.5rem;transition:border-color .15s,background .15s;"
-                   :style="selected.includes({{ test.test_id }}) ? 'border-color:var(--primary);background:var(--primary-tint);' : ''">
-              <input type="checkbox" name="test_ids" value="{{ test.test_id }}"
-                     style="width:16px;height:16px;accent-color:var(--primary);"
-                     @change="
-                       if($event.target.checked) {
-                         selected.push({{ test.test_id }});
-                         total += {{ test.price }};
-                       } else {
-                         selected = selected.filter(id => id !== {{ test.test_id }});
-                         total -= {{ test.price }};
-                       }
-                     ">
-              <div style="flex:1;">
-                <div style="font-weight:500;font-size:.875rem;color:var(--slate-900);">{{ test.test_name }}</div>
-                <div style="font-size:.75rem;color:var(--slate-500);">
-                  {{ test.sample_type }} · {{ test.turnaround_hours }}h TAT
-                </div>
-                {% if test.pre_test_instructions and test.pre_test_instructions != 'No special preparation required.' %}
-                <div style="font-size:.6875rem;color:var(--flag-amber);margin-top:.25rem;">{{ test.pre_test_instructions }}</div>
-                {% endif %}
-              </div>
-              <div class="font-mono" style="font-size:.9375rem;font-weight:700;color:var(--primary);">
-                PKR {{ "%.0f"|format(test.price) }}
-              </div>
-            </label>
-          {% else %}
-            <p style="color:var(--slate-500);">No active tests available.</p>
+
+        {# Category Filter Pills #}
+        <div style="display:flex;gap:0.375rem;padding:0.625rem 1.25rem;border-bottom:1px solid var(--card-border);background:#FBFDFB;overflow-x:auto;user-select:none;-webkit-user-select:none;">
+          <button type="button" @click="activeCategory = 'ALL'"
+                  class="btn btn-sm"
+                  :style="activeCategory === 'ALL' ? 'background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;padding:0.25rem 0.625rem;' : 'background:#fff;color:var(--slate-600);border:1px solid var(--card-border);padding:0.25rem 0.625rem;font-size:0.75rem;'">
+            All Tests
+          </button>
+          {% for cat in categories %}
+          <button type="button" @click="activeCategory = '{{ cat }}'"
+                  class="btn btn-sm"
+                  :style="activeCategory === '{{ cat }}' ? 'background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;padding:0.25rem 0.625rem;' : 'background:#fff;color:var(--slate-600);border:1px solid var(--card-border);padding:0.25rem 0.625rem;font-size:0.75rem;'">
+            {{ cat }}
+          </button>
           {% endfor %}
+        </div>
+
+        {# Scrollable Compact Test List — fixed height 420px with no accidental text selection #}
+        <div class="card-body" style="padding:0.75rem;height:420px;overflow-y:auto;user-select:none;-webkit-user-select:none;">
+          <div style="display:flex;flex-direction:column;gap:0.375rem;">
+            {% for test in tests %}
+            <div x-show="isTestVisible({{ test.test_id }})" style="margin:0;">
+              <label style="user-select:none;-webkit-user-select:none;display:flex;align-items:center;gap:0.75rem;padding:0.625rem 0.875rem;border:1px solid var(--card-border);border-radius:6px;transition:all .15s;{% if not test.is_active %}opacity:0.55;background:#F8FAFC;cursor:not-allowed;{% else %}cursor:pointer;background:#fff;{% endif %}"
+                     {% if test.is_active %}:style="selected.includes({{ test.test_id }}) ? 'border-color:var(--primary);background:var(--primary-tint);' : 'border-color:var(--card-border);background:#fff;'"{% endif %}>
+                
+                <input type="checkbox" name="test_ids" value="{{ test.test_id }}"
+                       style="width:16px;height:16px;accent-color:var(--primary);flex-shrink:0;cursor:pointer;"
+                       {% if not test.is_active %}
+                       disabled title="This test is currently unavailable"
+                       {% else %}
+                       :checked="selected.includes({{ test.test_id }})"
+                       @change="toggleTest({{ test.test_id }}, $event.target.checked)"
+                       {% endif %}>
+                
+                <div style="flex:1;min-width:0;user-select:none;-webkit-user-select:none;">
+                  <div class="flex items-center gap-2" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <span style="font-weight:600;font-size:0.84rem;color:var(--slate-900);">{{ test.test_name }}</span>
+                    <span class="font-mono" style="font-size:0.7rem;color:var(--slate-400);">({{ test.test_code }})</span>
+                    {% if not test.is_active %}
+                    <span class="badge badge-red" style="font-size:0.6rem;padding:0.1rem 0.35rem;">Unavailable</span>
+                    {% endif %}
+                  </div>
+                  <div style="font-size:0.72rem;color:var(--slate-500);margin-top:0.125rem;">
+                    {{ test.category_name }} · {{ test.sample_type }} · {{ test.turnaround_hours }}h TAT
+                  </div>
+                </div>
+                
+                <div class="font-mono text-right" style="flex-shrink:0;font-size:0.875rem;font-weight:700;color:var(--primary);user-select:none;-webkit-user-select:none;">
+                  PKR {{ "%.0f"|format(test.price) }}
+                </div>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
 
-    {# ── Appointment & Summary ── #}
+    {# ── Right: Appointment Date, Slot Selector & Summary ── #}
     <div>
-      <div class="card mb-4">
-        <div class="card-header"><div class="card-title">Appointment</div></div>
-        <div class="card-body">
-          <div class="form-group">
-            <label class="form-label">Appointment Date</label>
-            {{ form.appointment_date(class="form-control", type="date") }}
+      <div class="card mb-4" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);user-select:none;-webkit-user-select:none;">
+        <div class="card-header" style="padding:0.875rem 1.25rem;">
+          <div class="card-title" style="margin:0;">Schedule Visit</div>
+        </div>
+        <div class="card-body" style="padding:1.25rem;">
+          
+          {# Date Picker #}
+          <div class="form-group mb-3">
+            <label class="form-label" style="font-size:0.8125rem;font-weight:600;">Appointment Date (PKT)</label>
+            <input type="date" name="appointment_date" id="appointment_date"
+                   class="form-control"
+                   min="{{ today_karachi }}"
+                   x-model="apptDate"
+                   @change="fetchSlotAvailability()"
+                   required style="font-size:0.84rem;">
             {% if form.appointment_date.errors %}<div class="form-error">{{ form.appointment_date.errors[0] }}</div>{% endif %}
           </div>
-          <div class="form-group">
-            <label class="form-label">Time Slot</label>
-            {{ form.appointment_slot(class="form-control") }}
+
+          {# ── Slot Unavailability Alert popup ── #}
+          <div x-show="slotAlert" x-cloak
+               style="margin-bottom:0.75rem;padding:0.75rem;background:#FEF3C7;border:1px solid #FDE68A;border-radius:6px;font-size:0.8rem;color:#92400E;line-height:1.5;">
+            <div style="font-weight:700;margin-bottom:0.25rem;">
+              <i data-lucide="alert-triangle" style="width:13px;height:13px;display:inline;vertical-align:-1px;"></i>
+              Slot Unavailable
+            </div>
+            <span x-text="slotAlertMsg"></span>
           </div>
+
+          {# Time Slot Cards with Availability Tag on the Right #}
+          <div class="form-group mb-0">
+            <label class="form-label" style="font-size:0.8125rem;font-weight:600;margin-bottom:0.375rem;">Time Slot</label>
+            
+            {# Hidden input submitting the selected slot with form #}
+            <input type="hidden" name="appointment_slot" :value="selectedSlot">
+
+            <div style="display:flex;flex-direction:column;gap:0.5rem;user-select:none;-webkit-user-select:none;">
+              {% set slot_options = [
+                ('08:00 AM - 10:00 AM', '08:00 AM – 10:00 AM'),
+                ('10:00 AM - 12:00 PM', '10:00 AM – 12:00 PM'),
+                ('02:00 PM - 04:00 PM', '02:00 PM – 04:00 PM'),
+                ('04:00 PM - 06:00 PM', '04:00 PM – 06:00 PM')
+              ] %}
+              {% for slot_val, slot_txt in slot_options %}
+              <div @click="selectSlot('{{ slot_val }}')"
+                   style="user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:space-between;padding:0.625rem 0.75rem;border-radius:6px;border:1px solid var(--card-border);transition:all .15s;"
+                   :style="slots['{{ slot_val }}'] && !slots['{{ slot_val }}'].available
+                            ? 'opacity:0.6;background:#F8FAFC;cursor:pointer;border-color:#FCA5A5;'
+                            : (selectedSlot === '{{ slot_val }}'
+                                ? 'border-color:var(--primary);background:var(--primary-tint);cursor:pointer;'
+                                : 'background:#fff;cursor:pointer;')">
+                
+                <div class="flex items-center gap-2.5">
+                  {# Custom Radio Circle #}
+                  <div style="width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s;"
+                       :style="selectedSlot === '{{ slot_val }}' ? 'border:2px solid var(--primary);background:#fff;' : 'border:2px solid #CBD5E1;background:#fff;'">
+                    <div style="width:8px;height:8px;border-radius:50%;"
+                         :style="selectedSlot === '{{ slot_val }}' ? 'background:var(--primary);' : 'background:transparent;'"></div>
+                  </div>
+                  <span style="font-size:0.8125rem;font-weight:600;color:var(--slate-800);">{{ slot_txt }}</span>
+                </div>
+
+                <div>
+                  <span x-show="slots['{{ slot_val }}'] && slots['{{ slot_val }}'].available"
+                        class="badge badge-green" style="font-size:0.6875rem;padding:0.15rem 0.5rem;">
+                    Available
+                  </span>
+                  <span x-show="slots['{{ slot_val }}'] && !slots['{{ slot_val }}'].available"
+                        class="badge badge-red" style="font-size:0.6875rem;padding:0.15rem 0.5rem;">
+                    Unavailable
+                  </span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% if form.appointment_slot.errors %}<div class="form-error">{{ form.appointment_slot.errors[0] }}</div>{% endif %}
+          </div>
+
         </div>
       </div>
 
       {# Cart Summary #}
-      <div class="card">
-        <div class="card-header"><div class="card-title">Booking Summary</div></div>
-        <div class="card-body">
-          <div class="flex justify-between mb-2" style="font-size:.875rem;">
+      <div class="card" style="box-shadow:0 1px 3px rgba(0,0,0,0.05);user-select:none;-webkit-user-select:none;">
+        <div class="card-header" style="padding:0.875rem 1.25rem;"><div class="card-title" style="margin:0;">Booking Summary</div></div>
+        <div class="card-body" style="padding:1.25rem;">
+          <div class="flex justify-between mb-2" style="font-size:.84rem;">
             <span style="color:var(--slate-500);">Tests Selected</span>
-            <span x-text="selected.length" style="font-weight:600;">0</span>
+            <span x-text="selected.length" style="font-weight:700;color:var(--slate-900);">0</span>
           </div>
-          <div class="flex justify-between mb-3" style="font-size:.875rem;">
+
+          {# Itemized list of selected tests #}
+          <div x-show="selected.length > 0" style="margin-top:0.25rem;margin-bottom:0.75rem;padding:0.5rem 0.625rem;background:#F8FAFC;border:1px solid var(--card-border);border-radius:6px;max-height:120px;overflow-y:auto;">
+            <template x-for="id in selected" :key="id">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;padding:0.25rem 0;border-bottom:1px dashed #E2E8F0;">
+                <span style="color:var(--slate-800);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;" x-text="testsMeta[id] ? testsMeta[id].name : id"></span>
+                <span class="font-mono" style="color:var(--primary);font-weight:600;" x-text="'PKR ' + (testsMeta[id] ? Number(testsMeta[id].price).toLocaleString('en-PK') : 0)"></span>
+              </div>
+            </template>
+          </div>
+
+          <div class="flex justify-between mb-3" style="font-size:.84rem;">
             <span style="color:var(--slate-500);">Estimated Total</span>
-            <span class="font-mono" style="font-weight:700;font-size:1.0625rem;color:var(--primary);"
+            <span class="font-mono" style="font-weight:700;font-size:1.125rem;color:var(--primary);"
                   x-text="'PKR ' + total.toLocaleString('en-PK')">PKR 0</span>
           </div>
-          <div style="font-size:.75rem;color:var(--slate-500);background:var(--flag-amber-bg);border:1px solid var(--flag-amber-bdr);border-radius:6px;padding:.5rem .75rem;margin-bottom:1rem;">
-            Payment is collected at the reception counter on the day of your visit.
+          <div style="font-size:.75rem;color:var(--slate-600);background:var(--flag-amber-bg);border:1px solid var(--flag-amber-bdr);border-radius:6px;padding:.5rem .75rem;margin-bottom:1rem;line-height:1.4;">
+            Payment is collected at the reception counter upon arrival for your sample collection.
           </div>
-          <button type="submit" class="btn btn-primary w-full" style="justify-content:center;width:100%;"
-                  :disabled="selected.length === 0"
-                  :class="selected.length === 0 ? 'opacity-50 cursor-not-allowed' : ''">
+          <button type="submit" class="btn btn-primary w-full" style="justify-content:center;width:100%;padding:0.625rem;"
+                  :disabled="selected.length === 0 || !selectedSlot || (slots[selectedSlot] && !slots[selectedSlot].available) || slotAlert"
+                  :class="(selected.length === 0 || !selectedSlot || (slots[selectedSlot] && !slots[selectedSlot].available) || slotAlert) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-md'">
             <i data-lucide="calendar-check" style="width:15px;height:15px;"></i> Confirm Booking
           </button>
         </div>
@@ -102,4 +314,8 @@
     </div>
   </div>
 </form>
+
+<style>
+[x-cloak]{display:none!important;}
+</style>
 {% endblock %}

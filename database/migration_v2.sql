@@ -432,9 +432,9 @@ BEGIN
     IF NEW.booking_status != OLD.booking_status THEN
 
         IF OLD.booking_status = 'Booked' AND
-           NEW.booking_status NOT IN ('Confirmed', 'Cancelled') THEN
+           NEW.booking_status NOT IN ('Confirmed', 'Sample_Collected', 'Cancelled') THEN
             SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'WORKFLOW VIOLATION: Booked can only move to Confirmed or Cancelled.';
+            SET MESSAGE_TEXT = 'WORKFLOW VIOLATION: Booked can only move to Confirmed, Sample_Collected, or Cancelled.';
         END IF;
 
         IF OLD.booking_status = 'Confirmed' AND
@@ -444,19 +444,19 @@ BEGIN
         END IF;
 
         IF OLD.booking_status = 'Sample_Collected' AND
-           NEW.booking_status != 'In_Analysis' THEN
+           NEW.booking_status NOT IN ('In_Analysis', 'Pending_Verification', 'Cancelled') THEN
             SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'WORKFLOW VIOLATION: Sample_Collected can only move to In_Analysis.';
+            SET MESSAGE_TEXT = 'WORKFLOW VIOLATION: Sample_Collected can only move to In_Analysis or Pending_Verification.';
         END IF;
 
         IF OLD.booking_status = 'In_Analysis' AND
-           NEW.booking_status != 'Pending_Verification' THEN
+           NEW.booking_status NOT IN ('Pending_Verification', 'Sample_Collected', 'Cancelled') THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'WORKFLOW VIOLATION: In_Analysis can only move to Pending_Verification.';
         END IF;
 
         IF OLD.booking_status = 'Pending_Verification' AND
-           NEW.booking_status NOT IN ('Completed', 'In_Analysis') THEN
+           NEW.booking_status NOT IN ('Completed', 'In_Analysis', 'Cancelled') THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'WORKFLOW VIOLATION: Pending_Verification can only move to Completed or back to In_Analysis (pathologist send-back).';
         END IF;

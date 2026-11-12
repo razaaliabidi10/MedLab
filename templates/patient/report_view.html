@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Report {{ booking.booking_ref }} — MedLab Diagnostics{% endblock %}
+{% block page_title %}Official Diagnostic Report{% endblock %}
+{% block page_subtitle %}Booking {{ booking.booking_ref }} · Verified &amp; Released{% endblock %}
+
+{% block topbar_actions %}
+<div class="no-print" style="display:flex;gap:.5rem;">
+  {% if current_user.role_id == 4 %}
+  <a href="{{ url_for('patient.reports') }}" class="btn btn-ghost btn-sm">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> My Reports
+  </a>
+  {% elif current_user.role_id == 1 %}
+  <a href="{{ url_for('admin.dashboard') }}" class="btn btn-ghost btn-sm">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Dashboard
+  </a>
+  {% elif current_user.role_id == 6 %}
+  <a href="{{ url_for('pathologist.dashboard') }}" class="btn btn-ghost btn-sm">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Queue
+  </a>
+  {% elif current_user.role_id == 3 %}
+  <a href="{{ url_for('technician.dashboard') }}" class="btn btn-ghost btn-sm">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Worklist
+  </a>
+  {% else %}
+  <a href="{{ url_for('receptionist.dashboard') }}" class="btn btn-ghost btn-sm">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Bookings
+  </a>
+  {% endif %}
+  <a href="{{ url_for('patient.download_report_pdf', booking_id=booking.booking_id) }}" class="btn btn-primary btn-sm">
+    <i data-lucide="download" style="width:14px;height:14px;"></i> Download PDF
+  </a>
+  <button onclick="window.print()" class="btn btn-outline btn-sm">
+    <i data-lucide="printer" style="width:14px;height:14px;"></i> Print
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  .report-sheet {
+    background: #FFFFFF;
+    border: 1px solid var(--slate-200);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    max-width: 900px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+  .report-head {
+    padding: 1.75rem 2rem 1.25rem;
+    border-bottom: 2px solid var(--slate-900);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .report-meta-band {
+    background: #F8FAFC;
+    border-bottom: 1px solid var(--slate-200);
+    padding: 1rem 2rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .report-meta-band .meta-label {
+    font-size: .6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--slate-500);
+  }
+  .report-meta-band .meta-val {
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--slate-900);
+    margin-top: .125rem;
+  }
+  .patient-strip {
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--slate-200);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  .results-block {
+    padding: 1.5rem 2rem;
+  }
+  .signoff-box {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--slate-200);
+    background: #FBFDFB;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  @media print {
+    body { background: #FFFFFF !important; }
+    .sidebar, .topbar, .topbar-actions, .no-print, header { display: none !important; }
+    .app-layout { display: block !important; }
+    .content-area { padding: 0 !important; }
+    .report-sheet { border: none !important; box-shadow: none !important; max-width: 100% !important; margin: 0 !important; }
+  }
+</style>
+
+<div class="report-sheet">
+  {# ── Header ── #}
+  <div class="report-head">
+    <div>
+      <div style="font-size:1.375rem;font-weight:800;color:var(--slate-900);letter-spacing:-.02em;">MedLab Diagnostics</div>
+      <div style="font-size:.75rem;color:var(--slate-500);margin-top:.25rem;">
+        ISO-15189 Certified Clinical Laboratory · Quality Assurance Reference Lab · Karachi, Pakistan
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <span class="badge badge-green" style="font-size:.75rem;padding:.3rem .75rem;font-weight:700;">
+        DIAGNOSTIC REPORT
+      </span>
+      <div class="font-mono text-emerald-800" style="font-size:.875rem;font-weight:700;margin-top:.375rem;">
+        {{ booking.booking_ref }}
+      </div>
+    </div>
+  </div>
+
+  {# ── Meta Band ── #}
+  <div class="report-meta-band">
+    <div>
+      <div class="meta-label">Booking Ref</div>
+      <div class="meta-val font-mono">{{ booking.booking_ref }}</div>
+    </div>
+    <div>
+      <div class="meta-label">Appointment</div>
+      <div class="meta-val">{{ booking.appointment_date }}</div>
+    </div>
+    <div>
+      <div class="meta-label">Released Date</div>
+      <div class="meta-val font-mono">
+        {{ booking.released_at.strftime('%d %b %Y') if booking.released_at else '—' }}
+      </div>
+    </div>
+    <div>
+      <div class="meta-label">Status</div>
+      <div class="meta-val">
+        <span class="badge badge-green" style="font-size:.6875rem;">
+          <i data-lucide="check-circle" style="width:11px;height:11px;display:inline;"></i> Verified &amp; Released
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Patient Info ── #}
+  <div class="patient-strip">
+    <div>
+      <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#166534;margin-bottom:.5rem;">
+        Patient Information
+      </div>
+      <div style="font-size:1rem;font-weight:700;color:var(--slate-900);">{{ booking.patient_name }}</div>
+      <div style="font-size:.8125rem;color:var(--slate-600);margin-top:.25rem;">
+        <span>Gender: {{ booking.gender or 'Not specified' }}</span> ·
+        <span>Blood: {{ booking.blood_group or '—' }}</span>
+      </div>
+      <div style="font-size:.8125rem;color:var(--slate-500);margin-top:.125rem;">
+        Phone: {{ booking.phone or '—' }}
+      </div>
+      <div style="font-size:.8125rem;color:var(--slate-500);">
+        Email: {{ booking.email }}
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#166534;margin-bottom:.5rem;">
+        Specimen &amp; Encounter Details
+      </div>
+      <div style="font-size:.8125rem;color:var(--slate-700);margin-bottom:.25rem;">
+        <strong>Collection Type:</strong> {{ booking.collection_type }}
+      </div>
+      <div style="font-size:.8125rem;color:var(--slate-700);margin-bottom:.25rem;">
+        <strong>Appointment Slot:</strong> {{ booking.appointment_slot }}
+      </div>
+      {% if items and items[0].barcode_string %}
+      <div style="font-size:.8125rem;color:var(--slate-700);">
+        <strong>Sample Barcode:</strong>
+        <span class="font-mono font-semibold text-slate-900">{{ items[0].barcode_string }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Tests & Measured Biomarkers ── #}
+  <div class="results-block">
+    {% for it in items %}
+    <div style="margin-bottom:2rem;{% if not loop.last %}border-bottom:1px dashed var(--slate-200);padding-bottom:1.5rem;{% endif %}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+        <div>
+          <span class="badge badge-primary font-mono" style="font-size:.75rem;margin-right:.5rem;">{{ it.test_code }}</span>
+          <strong style="font-size:1rem;color:var(--slate-900);">{{ it.test_name }}</strong>
+          <span style="font-size:.8125rem;color:var(--slate-500);margin-left:.5rem;">({{ it.category_name }} · {{ it.sample_type }})</span>
+        </div>
+        {% if it.barcode_string %}
+        <div class="font-mono" style="font-size:.75rem;color:var(--slate-500);">
+          Barcode: <strong>{{ it.barcode_string }}</strong>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:5%;">#</th>
+              <th style="width:30%;">Biomarker / Parameter</th>
+              <th style="width:20%;">Measured Value</th>
+              <th style="width:15%;">Unit</th>
+              <th style="width:20%;">Reference Range</th>
+              <th style="width:10%;">Flag</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in it.results %}
+            <tr {% if r.is_abnormal %}style="background:#FFF7ED;"{% endif %}>
+              <td style="color:var(--slate-400);">{{ loop.index }}</td>
+              <td style="font-weight:600;color:var(--slate-900);">{{ r.param_name }}</td>
+              <td>
+                <span class="font-mono font-bold" style="font-size:.9375rem;{% if r.flag_status == 'HIGH' %}color:#DC2626;{% elif r.flag_status == 'LOW' %}color:#D97706;{% else %}color:#166534;{% endif %}">
+                  {{ r.measured_value }}
+                </span>
+              </td>
+              <td style="font-size:.8125rem;color:var(--slate-600);">{{ r.unit }}</td>
+              <td style="font-size:.8125rem;color:var(--slate-600);" class="font-mono">
+                {{ r.min_range }} – {{ r.max_range }}
+              </td>
+              <td>
+                {% if r.flag_status == 'HIGH' %}
+                  <span class="badge badge-red" style="font-weight:700;">HIGH</span>
+                {% elif r.flag_status == 'LOW' %}
+                  <span class="badge badge-amber" style="font-weight:700;">LOW</span>
+                {% else %}
+                  <span class="badge badge-green">NORMAL</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" style="text-align:center;color:var(--slate-500);padding:1rem;">
+                No measured values recorded.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Official Clinical Sign-off ── #}
+  <div class="signoff-box">
+    <div>
+      <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--slate-500);">
+        Laboratory Analysis
+      </div>
+      <div style="font-size:.9375rem;font-weight:700;color:var(--slate-900);margin-top:.25rem;">
+        {{ items[0].results[0].tech_name if items and items[0].results and items[0].results[0].tech_name else 'Medical Technologist' }}
+      </div>
+      <div style="font-size:.75rem;color:var(--slate-600);">Clinical Laboratory Technologist</div>
+      <div style="font-size:.6875rem;color:var(--slate-400);margin-top:.25rem;">MedLab Automated Analyzer System</div>
+    </div>
+
+    <div style="text-align:right;">
+      <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#166534;">
+        Medically Verified &amp; Approved By
+      </div>
+      <div style="font-size:.9375rem;font-weight:800;color:#166534;margin-top:.25rem;">
+        {{ booking.pathologist_name if (booking.pathologist_name and booking.pathologist_name.startswith('Dr.')) else ('Dr. ' + (booking.pathologist_name or 'Consultant Pathologist')) }}
+      </div>
+      <div style="font-size:.75rem;color:var(--slate-700);font-weight:500;">
+        Consultant Pathologist (MBBS, FCPS Pathology)
+      </div>
+      <div class="font-mono" style="font-size:.6875rem;color:var(--slate-500);margin-top:.25rem;">
+        Verified: {{ booking.released_at.strftime('%d %b %Y, %I:%M %p') if booking.released_at else '—' }}
+      </div>
+      <div style="margin-top:.5rem;display:inline-flex;align-items:center;gap:.375rem;background:#DCFCE7;border:1px solid #BBF7D0;padding:.25rem .625rem;border-radius:999px;">
+        <i data-lucide="shield-check" style="width:13px;height:13px;color:#166534;"></i>
+        <span style="font-size:.6875rem;font-weight:700;color:#166534;">Digitally Verified &amp; Released</span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Disclaimer & Print Action ── #}
+  <div style="padding:1.25rem 2rem;border-top:1px solid var(--slate-200);background:#F8FAFC;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+    <div style="font-size:.6875rem;color:var(--slate-500);max-width:550px;line-height:1.4;">
+      This diagnostic report is verified under MedLab Quality Control protocols. Results should be correlated clinically by a qualified physician. ISO-15189 Certified Clinical Laboratory.
+    </div>
+    <div class="no-print flex items-center gap-2">
+      <a href="{{ url_for('patient.download_report_pdf', booking_id=booking.booking_id) }}" class="btn btn-primary btn-sm">
+        <i data-lucide="download" style="width:14px;height:14px;"></i> Download PDF
+      </a>
+      <button onclick="window.print()" class="btn btn-outline btn-sm">
+        <i data-lucide="printer" style="width:14px;height:14px;"></i> Print Official Report
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

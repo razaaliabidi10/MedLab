@@ -10,8 +10,37 @@
 {% endblock %}
 
 {% block content %}
-{# ── Recent Notifications Panel ── #}
-{% include "notifications/_dashboard_panel.html" %}
+
+{# ── Ready Report Highlighted Cards ── #}
+{% if ready_reports %}
+<div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.5rem;">
+  {% for rep in ready_reports %}
+  <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-left:4px solid #166534;border-radius:8px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+    <div style="display:flex;align-items:flex-start;gap:.875rem;">
+      <div style="width:38px;height:38px;border-radius:8px;background:#DCFCE7;color:#166534;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i data-lucide="file-check" style="width:20px;height:20px;"></i>
+      </div>
+      <div>
+        <div style="font-weight:700;color:#166534;font-size:.9375rem;">Your report is ready</div>
+        <div style="font-size:.8125rem;color:#334155;margin-top:.125rem;">
+          Booking <span class="font-mono" style="font-weight:600;color:#0F172A;">{{ rep.booking_ref }}</span> · {{ rep.test_names }}
+        </div>
+        {% if rep.pathologist_name %}
+        <div style="font-size:.75rem;color:#64748B;margin-top:.25rem;">
+          Verified and approved by {{ rep.pathologist_name if rep.pathologist_name.startswith('Dr.') else ('Dr. ' + rep.pathologist_name) }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      <a href="{{ url_for('patient.view_report', booking_id=rep.booking_id) }}" class="btn btn-primary btn-sm">
+        <i data-lucide="file-text" style="width:14px;height:14px;"></i> View report
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 
 {% if bookings %}
 <div style="display:flex;flex-direction:column;gap:1rem;">
@@ -20,8 +49,8 @@
     <div style="padding:1rem 1.25rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
       <div>
         <div class="flex items-center gap-2 mb-1">
-          <span class="font-mono" style="font-size:.875rem;font-weight:600;">{{ b.booking_ref }}</span>
-          {% set sc = {'Booked':'badge-green','Sample_Collected':'badge-amber','In_Analysis':'badge-slate','Completed':'badge-green','Cancelled':'badge-red'} %}
+          <span class="font-mono text-emerald-800" style="font-size:.875rem;font-weight:600;">{{ b.booking_ref }}</span>
+          {% set sc = {'Booked':'badge-green','Sample_Collected':'badge-amber','In_Analysis':'badge-slate','Pending_Verification':'badge-amber','Completed':'badge-green','Cancelled':'badge-red'} %}
           <span class="badge {{ sc.get(b.booking_status,'badge-slate') }}">{{ b.booking_status | replace('_',' ') }}</span>
         </div>
         <div style="font-size:.8125rem;color:var(--slate-500);display:flex;align-items:center;gap:0.75rem;">
@@ -41,7 +70,7 @@
     </div>
 
     {# Progress Steps #}
-    {% set statuses = ['Booked','Sample_Collected','In_Analysis','Completed'] %}
+    {% set statuses = ['Booked','Sample_Collected','In_Analysis','Pending_Verification','Completed'] %}
     {% set cur_idx = statuses.index(b.booking_status) if b.booking_status in statuses else 0 %}
     <div style="padding:.75rem 1.25rem;border-top:1px solid var(--slate-100);border-bottom:1px solid var(--slate-100);background:var(--slate-50);">
       <div class="status-steps">
@@ -58,10 +87,15 @@
       </div>
     </div>
 
-    <div style="padding:.75rem 1.25rem;display:flex;gap:.625rem;flex-wrap:wrap;">
+    <div style="padding:.75rem 1.25rem;display:flex;gap:.625rem;flex-wrap:wrap;align-items:center;">
       <a href="{{ url_for('patient.booking_detail', booking_id=b.booking_id) }}" class="btn btn-ghost btn-sm">
-        <i data-lucide="file-text" style="width:13px;height:13px;"></i> View Details
+        <i data-lucide="info" style="width:13px;height:13px;"></i> View Details
       </a>
+      {% if b.booking_status == 'Completed' and b.released_at %}
+      <a href="{{ url_for('patient.view_report', booking_id=b.booking_id) }}" class="btn btn-primary btn-sm">
+        <i data-lucide="file-check" style="width:13px;height:13px;"></i> View Report
+      </a>
+      {% endif %}
     </div>
   </div>
   {% endfor %}

@@ -75,13 +75,27 @@
           </div>
         </div>
 
-        {% if role_booking_url %}
-        <div>
-          <a href="{{ role_booking_url }}" class="btn btn-primary btn-sm" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1rem;">
-            <i data-lucide="external-link" style="width:14px;height:14px;"></i> Go to Booking
-          </a>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+          {% if booking.booking_status == 'Completed' and booking.released_at %}
+            <a href="{{ url_for('patient.download_report_pdf', booking_id=booking.booking_id) }}" class="btn btn-primary btn-sm" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1rem;">
+              <i data-lucide="download" style="width:14px;height:14px;"></i> Download Report (PDF)
+            </a>
+            <a href="{{ url_for('patient.view_report', booking_id=booking.booking_id) }}" class="btn btn-outline btn-sm" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1rem;">
+              <i data-lucide="file-text" style="width:14px;height:14px;"></i> View Full Report
+            </a>
+          {% elif role_booking_url %}
+            <a href="{{ role_booking_url }}" class="btn btn-primary btn-sm" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1rem;">
+              <i data-lucide="external-link" style="width:14px;height:14px;"></i>
+              {% if current_user.role_id == 3 %}
+                Go to Specimen / Enter Results
+              {% elif current_user.role_id == 6 %}
+                Review in Verification Queue
+              {% else %}
+                Go to Booking
+              {% endif %}
+            </a>
+          {% endif %}
         </div>
-        {% endif %}
       </div>
 
       {# Metadata Sub-grid #}

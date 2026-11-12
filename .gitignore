@@ -1,0 +1,37 @@
+# Environment & Secret Configurations
+.env
+.env.*
+!.env.example
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Application Logs & Temporary Diagnostics
+logs/
+*.log
+scratch/
+
+# User Uploaded Media (Preserve folder and .gitkeep, ignore user uploads)
+static/uploads/avatars/*
+!static/uploads/avatars/.gitkeep
+!static/uploads/avatars/default_avatar.png
+
+# Database Dumps & Temporary Backups
+*.sql.gz
+*.dump
+*.bak
+
+# IDE & Operating System Artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
