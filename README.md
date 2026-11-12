@@ -37,15 +37,6 @@ Clinical pathology laboratories operate under strict diagnostic deadlines and st
    │  & Freezing  │       │  Verification │       │  Automated Flagging  │
    └──────────────┘       └───────────────┘       └──────────────────────┘
 ```
-
-1. **📅 Booking & Scheduling**: Patients self-book diagnostic appointments online or receptionists register walk-in patients, choosing from individual tests or curated health packages and securing available capacity slots.
-2. **💳 Invoicing & Counter Billing**: Invoices are automatically generated upon booking. Counter payments (Cash or Card) or online receipts are reconciled with cashier audit trails.
-3. **🩸 Sample Collection & Barcode Tagging**: Phlebotomists or receptionists collect the required biological specimens (EDTA whole blood, serum, urine, or swabs). The system generates unique barcode identifiers (`SMP-...`) and printable label strips for positive tube custody tracking.
-4. **🧪 Result Entry & Biomarker Measurement**: Laboratory technicians access dedicated worklists filtered by accession barcodes, input numerical biomarker findings, and submit draft evaluations.
-5. **⚡ Real-Time Automated Clinical Flagging**: Database triggers evaluate measured readings against medical reference intervals (`min_range` / `max_range`) in real time, automatically annotating abnormal values with `LOW`, `NORMAL`, or `HIGH` flags.
-6. **🩺 Pathologist Verification & Quality Control**: A certifying pathologist reviews abnormal parameters in a clinical verification queue. The pathologist can digitally approve results or return them to the technician with diagnostic notes for re-analysis.
-7. **📄 Report Publication & Record Freezing**: Once approved, the booking transitions to `Completed`. Real-time notifications alert the patient, a standardized PDF/digital report is made available, and database triggers freeze the results against any subsequent tampering.
-
 ---
 
 ## 🛠️ Technology Stack
