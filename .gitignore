@@ -29,6 +29,11 @@ static/uploads/avatars/*
 *.sql.gz
 *.dump
 *.bak
+backups/
+
+# Internal Tooling & Documentation
+.agents/
+project_documentation/
 
 # IDE & Operating System Artifacts
 .vscode/
